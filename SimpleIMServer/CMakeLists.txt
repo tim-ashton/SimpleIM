@@ -7,4 +7,6 @@ project(SimpleIMServer)
 
 add_executable(${PROJECT_NAME}
     SimpleIMServer.cpp
+    IncomingConnHandler.h
+    IncomingConnHandler.cpp
 )

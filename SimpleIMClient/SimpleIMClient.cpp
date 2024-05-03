@@ -17,7 +17,7 @@ void sendHello() {
     // Server address and port
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8080); // Port number
+    serverAddr.sin_port = htons(8989); // Port number
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); // IP address of the server
 
     // Connect to the server
