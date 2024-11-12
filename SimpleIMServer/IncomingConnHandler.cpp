@@ -7,19 +7,17 @@
 #include <unistd.h>
 
 IncomingConnHandler::IncomingConnHandler()
-{
-}
+{}
 
 IncomingConnHandler::~IncomingConnHandler()
-{
-}
+{}
 
 void IncomingConnHandler::start()
 {
     if(!m_acceptorThread) {
         std::cout << "IncomingConnHandler starting..." << std::endl;
 
-        m_acceptorThread.reset(new std::thread([&terminate = this->m_terminate]()->void {
+        m_acceptorThread.reset(new std::thread([this]()->void {
 
             int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
             if (serverSocket == -1) {
@@ -46,7 +44,7 @@ void IncomingConnHandler::start()
 
             std::cout << "Server listening on port 8989...\n";
 
-            while (!terminate) {
+            while (!m_terminate) {
 
                 sockaddr_in clientAddr;
                 socklen_t clientAddrSize = sizeof(clientAddr);
@@ -57,30 +55,7 @@ void IncomingConnHandler::start()
                 }
 
                 std::cout << "Connection accepted from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
-
-                // TODO
-                // Spawn a new thread to handle the connection
-                // std::thread workerThread(handleConnection, clientSocket);
-                // workerThread.detach(); // Detach the thread, allowing it to run independently
-
-                {
-                    // Receive data from the client
-                    char buffer[1024];
-                    int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-                    if (bytesReceived == -1) {
-                        std::cerr << "Error: Could not receive data from client\n";
-                        close(clientSocket);
-                        close(serverSocket);
-                        return;
-                    }
-
-                    // Null terminate the received data
-                    buffer[bytesReceived] = '\0';
-
-                    // Print the received data
-                    std::cout << "Received data from client: " << buffer << std::endl;
-                    close(clientSocket);
-                }
+                m_clientHandler.addConnectedClient(clientSocket);
             }
 
             close(serverSocket);

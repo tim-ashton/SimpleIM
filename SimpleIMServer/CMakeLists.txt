@@ -7,6 +7,13 @@ project(SimpleIMServer)
 
 add_executable(${PROJECT_NAME}
     SimpleIMServer.cpp
+    Client.h
+    ClientHandler.h
+    ClientHandler.cpp
     IncomingConnHandler.h
     IncomingConnHandler.cpp
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    SimpleIMLib
 )

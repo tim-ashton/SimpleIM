@@ -5,46 +5,82 @@
 #include <unistd.h>
 #include <cstring>
 
+#include <string>
 
-void sendHello() {
-    // Create a socket
-    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == -1) {
-        std::cerr << "Error: Could not create socket\n";
+#include "SimpleIMClient.h"
+
+
+SimpleIMClient::SimpleIMClient()
+{
+    if(!connectToServer()) {
+        std::cout << "Unable to connect to SimpleIM Server. Exiting." << std::endl;
         return;
     }
-
-    // Server address and port
-    sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8989); // Port number
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); // IP address of the server
-
-    // Connect to the server
-    if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
-        std::cerr << "Error: Could not connect to server\n";
-        close(clientSocket);
-        return;
-    }
-
-    // Send "Hello" message
-    const char* message = "Hello";
-    if (send(clientSocket, message, strlen(message), 0) == -1) {
-        std::cerr << "Error: Could not send message to server\n";
-        close(clientSocket);
-        return;
-    }
-
-    std::cout << "Sent: " << message << std::endl;
-
-    // Close the connection
-    close(clientSocket);
 }
 
-int main(int argc, char *argv[]) {
+SimpleIMClient::~SimpleIMClient()
+{
+}
 
-    std::cout << "Starting SimpleIM Client" << std::endl;
-    sendHello();
-  
-    return 0;
+bool SimpleIMClient::connected()
+{
+    return m_connected;
+}
+
+void SimpleIMClient::logon(const std::string &username)
+{
+    sendMessage(Message(MessageType::UserLogon, username));
+}
+
+bool SimpleIMClient::connectToServer()
+{
+    std::cout << "SimpleIMClient::connectToServer()" << std::endl;
+
+    m_clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (m_clientSocket == -1) {
+        std::cerr << "SimpleIMClient::connectToServer() Error: Could not create socket\n";
+        return false;
+    }
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(8989);
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (connect(m_clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
+        std::cerr << "SimpleIMClient::connectToServer() Error: Could not connect to server\n";
+        close(m_clientSocket);
+        return false;
+    }
+
+    std::cout << "SimpleIMClient::connectToServer: connection successful" << std::endl;
+    m_connected = true;
+    return m_connected;
+}
+
+void SimpleIMClient::disconnectFromServer()
+{
+    if(m_connected)
+        close(m_clientSocket);
+}
+
+void SimpleIMClient::sendMessage(const Message& message)
+{
+    std::cout << "SimpleIMClient::sendMessage()" << std::endl;
+
+    if(!m_connected) {
+        std::cerr << "SimpleIMClient::sendData() Warning: not connected. Cannot send." << std::endl;
+        return;
+    }
+
+    std::vector<uint8_t> data = message.to_bytes();
+
+    if (send(m_clientSocket, data.data(), data.size(), 0) == -1) {
+        std::cerr << "SimpleIMClient::sendData() Error: Could not send to server." << std::endl;
+
+        // TODO what? Fix this.
+        m_connected = false;
+        close(m_clientSocket);
+        return;
+    }
 }
