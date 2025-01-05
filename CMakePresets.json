@@ -2,13 +2,13 @@
     "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
-        "minor": 22,
-        "patch": 1
+        "minor": 31,
+        "patch": 0
     },
     "configurePresets": [
         {
-            "name": "debug",
-            "displayName": "Default Config",
+            "name": "Debug",
+            "displayName": "Default Debug",
             "description": "Default build using Ninja generator",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
@@ -21,8 +21,8 @@
     ],
     "buildPresets": [
         {
-            "name": "debug",
-            "configurePreset": "debug"
+            "name": "Debug",
+            "configurePreset": "Debug"
         }
     ]
 }
