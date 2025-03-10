@@ -1,7 +1,7 @@
-FROM ubuntu:25.04
+FROM ubuntu:24.04
 
 RUN apt update && apt upgrade -y && apt install -y \
-    g++ \
+    build-essential \
     cmake \
     ninja-build \
     git \

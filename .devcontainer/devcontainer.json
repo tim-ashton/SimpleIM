@@ -1,5 +1,5 @@
 {
-  "name": "Ubuntu 25",
+  "name": "Ubuntu 24",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
@@ -16,7 +16,7 @@
         "ms-vscode.cpptools-extension-pack",
         "ms-vscode.cpptools-themes",
         "ms-vscode.cmake-tools",
-        "twxs.cmake"
+        "ms-azuretools.vscode-docker"
       ]
     }
   },
