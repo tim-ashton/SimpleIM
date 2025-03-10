@@ -1,5 +1,5 @@
 #pragma once
-#include "ClientHandler.h"
+#include "ClientManager.h"
 
 #include <thread>
 #include <memory>
@@ -15,7 +15,7 @@ public:
     void start();
 
 private:
-    ClientHandler m_clientHandler;
+    ClientManager m_clientManager;
 
     bool m_terminate;
     std::unique_ptr<std::thread> m_acceptorThread;

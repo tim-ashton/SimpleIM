@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
             exit = true;
             continue;
         }
-        // client.sendData(message);
+        client.sendChatMessage(message);
     }
 
     std::cout << "Goodbye." << std::endl;

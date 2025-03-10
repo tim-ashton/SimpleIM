@@ -6,18 +6,17 @@
 #include <vector>
 
 
-#include "MessageType.h"
+#include "MessageHeader.h"
 
 class Message {
-
 public:
-    MessageType m_messageType;
-    std::string m_messageData;
-
     explicit Message(MessageType messageType, const std::string& data);
 
     std::vector<uint8_t> to_bytes() const;
 
-    // Convert to message.
     static Message from_bytes(const std::vector<uint8_t>& data);
+
+private:
+    MessageHeader m_header;
+    std::string m_messageData;
 };

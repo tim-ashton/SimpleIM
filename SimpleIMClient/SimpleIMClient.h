@@ -12,6 +12,8 @@ public:
 
     void logon(const std::string &username);
 
+    void sendChatMessage(const std::string &message);
+
     void disconnectFromServer();
 
 private:

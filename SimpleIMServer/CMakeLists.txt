@@ -8,8 +8,9 @@ project(SimpleIMServer)
 add_executable(${PROJECT_NAME}
     SimpleIMServer.cpp
     Client.h
-    ClientHandler.h
-    ClientHandler.cpp
+    Client.cpp
+    ClientManager.h
+    ClientManager.cpp
     IncomingConnHandler.h
     IncomingConnHandler.cpp
 )

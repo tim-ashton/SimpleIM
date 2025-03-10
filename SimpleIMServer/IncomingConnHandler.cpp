@@ -55,7 +55,7 @@ void IncomingConnHandler::start()
                 }
 
                 std::cout << "Connection accepted from " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
-                m_clientHandler.addConnectedClient(clientSocket);
+                m_clientManager.addConnectedClient(clientSocket);
             }
 
             close(serverSocket);
