@@ -7,8 +7,8 @@
     },
     "configurePresets": [
         {
-            "name": "Debug",
-            "displayName": "Default Debug",
+            "name": "linux",
+            "displayName": "linux Debug",
             "description": "Default build using Ninja generator",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
@@ -21,8 +21,8 @@
     ],
     "buildPresets": [
         {
-            "name": "Debug",
-            "configurePreset": "Debug"
+            "name": "linux",
+            "configurePreset": "linux"
         }
     ]
 }
