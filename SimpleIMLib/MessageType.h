@@ -7,5 +7,10 @@ enum class MessageType : uint8_t
 {
     UserLogon,
     UserLogoff,
-    ChatMessage
+    ChatMessage,
+    LoginSuccess,
+    LoginFailure,
+    ConnectedClientsList,
+    ClientConnected,
+    ClientDisconnected
 };

@@ -14,7 +14,6 @@ int main(int argc, char *argv[]) {
     IncomingConnHandler connectionHandler;
     connectionHandler.start();
 
-
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }

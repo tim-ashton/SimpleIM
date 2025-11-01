@@ -58,6 +58,8 @@
             "name": "Launch-Server+Client",
             "configurations": [
                 "(gdb)LaunchServer",
+                "(gdb)LaunchClient",
+                "(gdb)LaunchClient",
                 "(gdb)LaunchClient"
             ],
             "stopAll": true

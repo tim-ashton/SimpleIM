@@ -8,6 +8,9 @@
 
 #include <Message.h>
 
+// Forward declaration
+class ClientManager;
+
 class Client 
 {
 public:
@@ -18,8 +21,11 @@ public:
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
     
-    std::string handleLogon();
-    void run();
+    bool handleLogon(ClientManager* manager);
+    void run(ClientManager* manager);
+    
+    bool sendMessage(MessageType type, const std::string& data = "");
+    const std::string& getUserId() const { return m_userId; }
 
 private:
     int m_socket;

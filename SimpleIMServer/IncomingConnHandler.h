@@ -13,6 +13,7 @@ public:
     ~IncomingConnHandler();
 
     void start();
+    void stop();
 
 private:
     ClientManager m_clientManager;

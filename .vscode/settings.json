@@ -60,6 +60,7 @@
         "iomanip": "cpp",
         "span": "cpp",
         "variant": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "mutex": "cpp"
     }
 }
