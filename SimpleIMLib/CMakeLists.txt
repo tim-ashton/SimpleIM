@@ -7,6 +7,7 @@ project(SimpleIMLib)
 
 ADD_LIBRARY(${PROJECT_NAME} STATIC
     Message.cpp
+    SimpleIMClient.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC 

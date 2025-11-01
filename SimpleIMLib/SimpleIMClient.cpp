@@ -40,7 +40,14 @@ void SimpleIMClient::logon(const std::string &username)
 
 void SimpleIMClient::sendChatMessage(const std::string &message)
 {
-    sendMessage(Message(MessageType::ChatMessage, message));  // Add destination user.
+    sendMessage(Message(MessageType::ChatMessageBroadcast, message));
+}
+
+void SimpleIMClient::sendDirectMessage(const std::string &targetUsername, const std::string &message)
+{
+    // Format: "targetUser:message"
+    std::string dmData = targetUsername + ":" + message;
+    sendMessage(Message(MessageType::ChatMessageDM, dmData));
 }
 
 bool SimpleIMClient::connectToServer()
@@ -211,8 +218,11 @@ void SimpleIMClient::handleReceivedMessage(MessageType type, const std::string& 
         case MessageType::ClientDisconnected:
             handleClientDisconnected(data);
             break;
-        case MessageType::ChatMessage:
+        case MessageType::ChatMessageBroadcast:
             std::cout << "Chat: " << data << std::endl;
+            break;
+        case MessageType::ChatMessageDM:
+            std::cout << "Direct Message: " << data << std::endl;
             break;
         default:
             std::cout << "Received unknown message type." << std::endl;

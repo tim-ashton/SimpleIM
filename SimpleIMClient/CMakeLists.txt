@@ -6,9 +6,6 @@ project(SimpleIMClient)
 
 add_executable(${PROJECT_NAME}
     main.cpp
-    SimpleIMClient.h
-    SimpleIMClient.cpp
-
     ClientInterface.h
     ClientInterface.cpp
 )

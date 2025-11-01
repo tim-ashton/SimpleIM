@@ -11,15 +11,15 @@
 // Forward declaration
 class ClientManager;
 
-class Client 
+class ServerClient 
 {
 public:
-    explicit Client(int socket, 
+    explicit ServerClient(int socket, 
                     std::function<void(std::string)> disconnectCallback);
-    ~Client();
+    ~ServerClient();
 
-    Client(const Client&) = delete;
-    Client& operator=(const Client&) = delete;
+    ServerClient(const ServerClient&) = delete;
+    ServerClient& operator=(const ServerClient&) = delete;
     
     bool handleLogon(ClientManager* manager);
     void run(ClientManager* manager);

@@ -1,5 +1,5 @@
 #include "ClientInterface.h"
-#include "SimpleIMClient.h"
+#include <SimpleIMClient.h>
 
 #include <iostream>
 #include <sstream>
@@ -82,12 +82,11 @@ void ClientInterface::printHelp()
     std::cout << "  help                 - Show this help message" << std::endl;
     std::cout << "  msg <message>        - Send a chat message" << std::endl;
     std::cout << "  say <message>        - Send a chat message (alias for msg)" << std::endl;
-    std::cout << "  dm <user> <message>  - Send direct message (@:user format)" << std::endl;
+    std::cout << "  dm <user> <message>  - Send direct message to specific user" << std::endl;
     std::cout << "  status               - Show connection status" << std::endl;
     std::cout << "  quit, exit, bye      - Disconnect and exit" << std::endl;
     std::cout << "  clear                - Clear the screen" << std::endl;
     std::cout << "\nNote: Users joining/leaving will be shown automatically" << std::endl;
-    std::cout << "Direct message format: @:username message" << std::endl;
     std::cout << "========================\n" << std::endl;
 }
 
@@ -135,8 +134,7 @@ void ClientInterface::handleCommand(const std::string& command)
         if(username.empty() || message.empty()) {
             std::cout << "Usage: dm <username> <message>" << std::endl;
         } else {
-            std::string directMessage = "@:" + username + " " + message;
-            m_client->sendChatMessage(directMessage);
+            m_client->sendDirectMessage(username, message);
             std::cout << "Direct message sent to " << username << ": " << message << std::endl;
         }
     }

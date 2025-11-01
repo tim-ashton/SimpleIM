@@ -29,10 +29,34 @@
             ]
         },
         {
-            "name": "(gdb)LaunchClient",
+            "name": "(gdb)LaunchCmdLineClient",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/SimpleIMClient/SimpleIMClient",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb)LaunchGuiClient",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/SimpleIMGuiClient/SimpleIMGuiClient",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -58,9 +82,9 @@
             "name": "Launch-Server+Client",
             "configurations": [
                 "(gdb)LaunchServer",
-                "(gdb)LaunchClient",
-                "(gdb)LaunchClient",
-                "(gdb)LaunchClient"
+                "(gdb)LaunchGuiClient",
+                "(gdb)LaunchGuiClient",
+                "(gdb)LaunchGuiClient"
             ],
             "stopAll": true
         }

@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 
-#include "SimpleIMClient.h"
+#include <SimpleIMClient.h>
 #include "ClientInterface.h"
 
 int main(int argc, char *argv[]) {

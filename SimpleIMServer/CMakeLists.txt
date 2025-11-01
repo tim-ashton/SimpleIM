@@ -6,13 +6,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 project(SimpleIMServer)
 
 add_executable(${PROJECT_NAME}
-    SimpleIMServer.cpp
-    Client.h
-    Client.cpp
     ClientManager.h
     ClientManager.cpp
     IncomingConnHandler.h
     IncomingConnHandler.cpp
+    ServerClient.h
+    ServerClient.cpp
+    SimpleIMServer.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

@@ -1,4 +1,4 @@
-#include "Client.h"
+#include "ServerClient.h"
 #include "ClientManager.h"
 
 #include <iostream>
@@ -7,7 +7,7 @@
 #include <vector>
 #include <unistd.h>
 
-Client::Client(int socket,
+ServerClient::ServerClient(int socket,
                std::function<void(std::string)> disconnectCallback)
     : m_socket(socket)
     , m_userId("")
@@ -15,7 +15,7 @@ Client::Client(int socket,
     , m_clientDisconnected(disconnectCallback)
 {}
 
-Client::~Client()
+ServerClient::~ServerClient()
 {
     m_terminate = true;
     
@@ -31,7 +31,7 @@ Client::~Client()
     }
 }
 
-bool Client::handleLogon(ClientManager* manager)
+bool ServerClient::handleLogon(ClientManager* manager)
 {
     std::optional<MessageHeader> header = readMessageHeader();
     if(!header.has_value()) {
@@ -72,7 +72,7 @@ bool Client::handleLogon(ClientManager* manager)
     return true;
 }
 
-void Client::run(ClientManager* manager)
+void ServerClient::run(ClientManager* manager)
 {
     if (!m_thread)
     {
@@ -97,10 +97,16 @@ void Client::run(ClientManager* manager)
                             break;
                             case MessageType::UserLogoff:
                             break;
-                            case MessageType::ChatMessage:
+                            case MessageType::ChatMessageBroadcast:
                                 std::cout << "Received chat message from " << m_userId << ": " << messageData << std::endl;
                                 if (manager) {
-                                    manager->routeChatMessage(m_userId, messageData);
+                                    manager->broadcastChatMessage(m_userId, messageData);
+                                }
+                            break;
+                            case MessageType::ChatMessageDM:
+                                std::cout << "Received direct message from " << m_userId << ": " << messageData << std::endl;
+                                if (manager) {
+                                    manager->handleDirectMessage(m_userId, messageData);
                                 }
                             break;
                         }
@@ -121,7 +127,7 @@ void Client::run(ClientManager* manager)
     }
 }
 
-std::optional<MessageHeader> Client::readMessageHeader()
+std::optional<MessageHeader> ServerClient::readMessageHeader()
 {
     if (m_socket > -1 && !m_terminate)
     {
@@ -160,7 +166,7 @@ std::optional<MessageHeader> Client::readMessageHeader()
     }
 }
 
-std::string Client::readMessageData(uint32_t dataLen)
+std::string ServerClient::readMessageData(uint32_t dataLen)
 {
     if(dataLen < 1){
         std::cout << __PRETTY_FUNCTION__ << "No data.";
@@ -194,7 +200,7 @@ std::string Client::readMessageData(uint32_t dataLen)
     }
 }
 
-void Client::handleSocketError()
+void ServerClient::handleSocketError()
 {
     m_terminate = true;
 
@@ -211,7 +217,7 @@ void Client::handleSocketError()
     }
 }
 
-bool Client::sendMessage(MessageType type, const std::string& data)
+bool ServerClient::sendMessage(MessageType type, const std::string& data)
 {
     if (m_socket <= -1) {
         std::cerr << __PRETTY_FUNCTION__ << "Invalid socket." << std::endl;

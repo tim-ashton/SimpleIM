@@ -17,7 +17,7 @@ ClientManager::~ClientManager()
 
 void ClientManager::addConnectedClient(int clientSock)
 {
-    Client *client = new Client(clientSock, std::bind(&ClientManager::onClientDisconnected, this, std::placeholders::_1));
+    ServerClient *client = new ServerClient(clientSock, std::bind(&ClientManager::onClientDisconnected, this, std::placeholders::_1));
     
     bool loginSuccessful = client->handleLogon(this);
     
@@ -27,7 +27,7 @@ void ClientManager::addConnectedClient(int clientSock)
         // Register the client and notify others
         {
             std::lock_guard<std::mutex> lock(m_clientsMutex);
-            m_connectedClients.emplace(client->getUserId(), std::unique_ptr<Client>(client));
+            m_connectedClients.emplace(client->getUserId(), std::unique_ptr<ServerClient>(client));
         }
         
         // Broadcast to other clients that a new user connected
@@ -49,7 +49,7 @@ bool ClientManager::isUsernameAvailable(const std::string& username)
     return m_connectedClients.find(username) == m_connectedClients.end();
 }
 
-void ClientManager::registerClient(const std::string& userId, std::unique_ptr<Client> client)
+void ClientManager::registerClient(const std::string& userId, std::unique_ptr<ServerClient> client)
 {
     std::lock_guard<std::mutex> lock(m_clientsMutex);
     m_connectedClients.emplace(userId, std::move(client));
@@ -122,69 +122,60 @@ bool ClientManager::sendDirectMessage(const std::string& fromUserId, const std::
     if (it != m_connectedClients.end()) {
         // Format: "fromUser: message"
         std::string formattedMessage = fromUserId + ": " + message;
-        it->second->sendMessage(MessageType::ChatMessage, formattedMessage);
+        it->second->sendMessage(MessageType::ChatMessageBroadcast, formattedMessage);
         return true;
     }
     
     return false; // User not found
 }
 
-void ClientManager::routeChatMessage(const std::string& fromUserId, const std::string& messageContent)
+void ClientManager::broadcastChatMessage(const std::string& fromUserId, const std::string& message)
 {
-    if (isDirectMessage(messageContent)) {
-        auto [toUserId, actualMessage] = parseDirectMessage(messageContent);
-        
-        if (toUserId.empty() || actualMessage.empty()) {
-            // Send error back to sender
-            std::lock_guard<std::mutex> lock(m_clientsMutex);
-            auto it = m_connectedClients.find(fromUserId);
-            if (it != m_connectedClients.end()) {
-                it->second->sendMessage(MessageType::ChatMessage, "System: Invalid message format. Use @:username message");
-            }
-            return;
+    // Broadcast to all users (public message)
+    std::string formattedMessage = fromUserId + ": " + message;
+    broadcastMessage(MessageType::ChatMessageBroadcast, formattedMessage);
+}
+
+void ClientManager::handleDirectMessage(const std::string& fromUserId, const std::string& messageData)
+{
+    // Parse the direct message format: "targetUser:message"
+    size_t colonPos = messageData.find(':');
+    if (colonPos == std::string::npos || colonPos == 0 || colonPos == messageData.length() - 1) {
+        // Send error back to sender - invalid format
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = m_connectedClients.find(fromUserId);
+        if (it != m_connectedClients.end()) {
+            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Invalid direct message format. Expected 'username:message'");
         }
-        
-        if (sendDirectMessage(fromUserId, toUserId, actualMessage)) {
-            // Confirm to sender
-            std::lock_guard<std::mutex> lock(m_clientsMutex);
-            auto it = m_connectedClients.find(fromUserId);
-            if (it != m_connectedClients.end()) {
-                it->second->sendMessage(MessageType::ChatMessage, "System: Message sent to " + toUserId);
-            }
-        } else {
-            // User not found
-            std::lock_guard<std::mutex> lock(m_clientsMutex);
-            auto it = m_connectedClients.find(fromUserId);
-            if (it != m_connectedClients.end()) {
-                it->second->sendMessage(MessageType::ChatMessage, "System: User '" + toUserId + "' not found or not online");
-            }
+        return;
+    }
+    
+    std::string toUserId = messageData.substr(0, colonPos);
+    std::string actualMessage = messageData.substr(colonPos + 1);
+    
+    if (toUserId.empty() || actualMessage.empty()) {
+        // Send error back to sender
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = m_connectedClients.find(fromUserId);
+        if (it != m_connectedClients.end()) {
+            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Username and message cannot be empty");
+        }
+        return;
+    }
+    
+    if (sendDirectMessage(fromUserId, toUserId, actualMessage)) {
+        // Confirm to sender
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = m_connectedClients.find(fromUserId);
+        if (it != m_connectedClients.end()) {
+            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Message sent to " + toUserId);
         }
     } else {
-        // Broadcast to all users (public message)
-        std::string formattedMessage = fromUserId + ": " + messageContent;
-        broadcastMessage(MessageType::ChatMessage, formattedMessage);
+        // User not found
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = m_connectedClients.find(fromUserId);
+        if (it != m_connectedClients.end()) {
+            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: User '" + toUserId + "' not found or not online");
+        }
     }
-}
-
-bool ClientManager::isDirectMessage(const std::string& message)
-{
-    return message.size() >= 3 && message.substr(0, 2) == "@:";
-}
-
-std::pair<std::string, std::string> ClientManager::parseDirectMessage(const std::string& message)
-{
-    if (!isDirectMessage(message)) {
-        return {"", ""};
-    }
-    
-    // Find the space after the username
-    size_t spacePos = message.find(' ', 2);
-    if (spacePos == std::string::npos) {
-        return {"", ""};
-    }
-    
-    std::string toUserId = message.substr(2, spacePos - 2);
-    std::string actualMessage = message.substr(spacePos + 1);
-    
-    return {toUserId, actualMessage};
 }

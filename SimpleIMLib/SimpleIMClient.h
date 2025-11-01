@@ -17,6 +17,7 @@ public:
     void logon(const std::string &username);
 
     void sendChatMessage(const std::string &message);
+    void sendDirectMessage(const std::string &targetUsername, const std::string &message);
 
     void disconnectFromServer();
 
