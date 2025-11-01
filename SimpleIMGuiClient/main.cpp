@@ -22,6 +22,11 @@ static lv_obj_t* user_list = nullptr;
 static lv_obj_t* input_textarea = nullptr;
 static lv_obj_t* send_btn = nullptr;
 
+// Login dialog elements
+static lv_obj_t* login_modal = nullptr;
+static lv_obj_t* username_input = nullptr;
+static bool login_completed = false;
+
 void signal_handler(int signal) {
     running = false;
 }
@@ -275,6 +280,132 @@ void create_chat_ui() {
     lv_obj_center(send_label);
 }
 
+// Function to handle login attempt
+void attempt_login(const std::string& username) {
+    if (username.empty()) {
+        current_username = "Guest";
+        add_message_to_chat("System", "No username provided. Running in offline mode.", false);
+    } else {
+        current_username = username;
+        
+        // Add initial system message
+        add_message_to_chat("System", "Connecting to server...", false);
+        
+        // Connect to server
+        client->logon(username);
+        
+        // Give some time for connection
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        
+        if (client->connected()) {
+            add_message_to_chat("System", "Connected! You can now chat.", false);
+        } else {
+            add_message_to_chat("System", "Failed to connect to server. Running in offline mode.", false);
+        }
+    }
+}
+
+// Event handler for login button
+static void login_btn_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    
+    if(code == LV_EVENT_CLICKED) {
+        const char* username_text = lv_textarea_get_text(username_input);
+        std::string username(username_text ? username_text : "");
+        
+        // Close the modal
+        lv_obj_del(login_modal);
+        login_modal = nullptr;
+        login_completed = true;
+        
+        // Attempt login
+        attempt_login(username);
+    }
+}
+
+// Event handler for login dialog key events (Enter to login)
+static void login_input_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    
+    if(code == LV_EVENT_KEY) {
+        uint32_t key = lv_indev_get_key(lv_indev_get_act());
+        if(key == LV_KEY_ENTER) {
+            // Trigger login
+            const char* username_text = lv_textarea_get_text(username_input);
+            std::string username(username_text ? username_text : "");
+            
+            // Close the modal
+            lv_obj_del(login_modal);
+            login_modal = nullptr;
+            login_completed = true;
+            
+            // Attempt login
+            attempt_login(username);
+        }
+    }
+}
+
+// Function to create login modal dialog
+void create_login_dialog() {
+    // Create modal background
+    login_modal = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(login_modal, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(login_modal, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(login_modal, 180, 0);  // Semi-transparent
+    lv_obj_clear_flag(login_modal, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Create dialog container
+    lv_obj_t* dialog = lv_obj_create(login_modal);
+    lv_obj_set_size(dialog, 400, 250);
+    lv_obj_center(dialog);
+    lv_obj_set_style_bg_color(dialog, lv_color_hex(0x2D2D2D), 0);
+    lv_obj_set_style_border_color(dialog, lv_color_hex(0x007ACC), 0);
+    lv_obj_set_style_border_width(dialog, 2, 0);
+    lv_obj_set_style_radius(dialog, 10, 0);
+    lv_obj_clear_flag(dialog, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Title
+    lv_obj_t* title = lv_label_create(dialog);
+    lv_label_set_text(title, "Welcome to SimpleIM");
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+
+    // Username label
+    lv_obj_t* username_label = lv_label_create(dialog);
+    lv_label_set_text(username_label, "Enter your username:");
+    lv_obj_set_style_text_color(username_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(username_label, LV_ALIGN_TOP_LEFT, 20, 70);
+
+    // Username input
+    username_input = lv_textarea_create(dialog);
+    lv_obj_set_size(username_input, 360, 40);
+    lv_obj_align(username_input, LV_ALIGN_TOP_LEFT, 20, 100);
+    lv_textarea_set_placeholder_text(username_input, "Username");
+    lv_obj_set_style_bg_color(username_input, lv_color_hex(0x404040), 0);
+    lv_obj_set_style_text_color(username_input, lv_color_hex(0xFFFFFF), 0);
+    lv_textarea_set_one_line(username_input, true);
+    lv_obj_add_event_cb(username_input, login_input_event_cb, LV_EVENT_KEY, nullptr);
+
+    // Login button
+    lv_obj_t* login_btn = lv_button_create(dialog);
+    lv_obj_set_size(login_btn, 120, 40);
+    lv_obj_align(login_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_add_event_cb(login_btn, login_btn_event_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_style_bg_color(login_btn, lv_color_hex(0x007ACC), 0);
+
+    lv_obj_t* login_label = lv_label_create(login_btn);
+    lv_label_set_text(login_label, "Connect");
+    lv_obj_set_style_text_color(login_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(login_label);
+
+    // Focus on the input field
+    lv_group_t* group = lv_group_create();
+    lv_group_add_obj(group, username_input);
+    lv_indev_set_group(lv_indev_get_next(nullptr), group);
+}
+
 int main(void)
 {
     std::cout << "Starting SimpleIM GUI Client..." << std::endl;
@@ -299,36 +430,13 @@ int main(void)
     // Initialize networking
     client = new SimpleIMClient();
     
-    // Prompt for username (simple implementation)
-    std::cout << "Enter username: ";
-    std::string username;
-    if (std::getline(std::cin, username) && !username.empty()) {
-        current_username = username;
-        
-        // Add initial system message
-        add_message_to_chat("System", "Connecting to server...", false);
-        
-        // Connect to server
-        client->logon(username);
-        
-        // Give some time for connection
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        
-        if (client->connected()) {
-            add_message_to_chat("System", "Connected! You can now chat.", false);
-        } else {
-            add_message_to_chat("System", "Failed to connect to server. Running in offline mode.", false);
-        }
-    } else {
-        current_username = "Guest";
-        add_message_to_chat("System", "No username provided. Running in offline mode.", false);
-    }
+    // Show login dialog
+    create_login_dialog();
 
     std::cout << "LVGL Chat UI initialized successfully!" << std::endl;
     std::cout << "Window created: 1000x700" << std::endl;
     std::cout << "Mouse and keyboard input enabled" << std::endl;
-    std::cout << "Type messages and press Enter or click Send" << std::endl;
-    std::cout << "Click Exit button or press Ctrl+C to close" << std::endl;
+    std::cout << "Waiting for login..." << std::endl;
 
     // Main event loop
     while(running) {
