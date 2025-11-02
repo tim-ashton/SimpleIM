@@ -82,7 +82,7 @@
             "name": "Launch-Server+Client",
             "configurations": [
                 "(gdb)LaunchServer",
-                "(gdb)LaunchGuiClient",
+                // "(gdb)LaunchGuiClient",
                 "(gdb)LaunchGuiClient",
                 "(gdb)LaunchGuiClient"
             ],

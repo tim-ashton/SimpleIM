@@ -1,16 +1,20 @@
 #include "lvgl.h"
 #include <SimpleIMClient.h>
-#include <unistd.h>
-#include <iostream>
-#include <signal.h>
-#include <string>
-#include <vector>
-#include <cstring>
-#include <sstream>
-#include <thread>
-#include <chrono>
+#include "LoginDialog.h"
 
-static bool running = true;
+#include <unistd.h>
+#include <signal.h>
+
+#include <chrono>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+static bool m_terminate = false;
 
 // Networking
 static SimpleIMClient* client = nullptr;
@@ -22,13 +26,19 @@ static lv_obj_t* user_list = nullptr;
 static lv_obj_t* input_textarea = nullptr;
 static lv_obj_t* send_btn = nullptr;
 
-// Login dialog elements
-static lv_obj_t* login_modal = nullptr;
-static lv_obj_t* username_input = nullptr;
-static bool login_completed = false;
+// Login dialog
+static im_gui::LoginDialog* login_dialog = nullptr;
 
-void signal_handler(int signal) {
-    running = false;
+// Input devices (for main chat interface)
+static lv_indev_t* keyboard_device = nullptr;
+
+// void signal_handler(int signal) {
+//     m_terminate = true;
+// }
+
+uint32_t tick_handler() {
+    const auto now{std::chrono::steady_clock::now()};
+    return static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
 }
 
 // Function to add a message to the chat
@@ -178,25 +188,20 @@ static void exit_event_cb(lv_event_t * e)
     lv_event_code_t code = lv_event_get_code(e);
     
     if(code == LV_EVENT_CLICKED) {
-        std::cout << "Exit button clicked!" << std::endl;
-        
-        if (client) {
-            client->disconnectFromServer();
-        }
-        
-        running = false;
+        std::cout << "Exit button clicked!" << std::endl;      
+        m_terminate = true;
     }
 }
 
-void create_chat_ui() {
-    // Create main container
-    lv_obj_t* main_cont = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(main_cont, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_pad_all(main_cont, 5, 0);
-    lv_obj_set_style_bg_color(main_cont, lv_color_hex(0x1E1E1E), 0);
+lv_obj_t* create_chat_ui() {
+
+    lv_obj_t* main_window = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(main_window, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_pad_all(main_window, 5, 0);
+    lv_obj_set_style_bg_color(main_window, lv_color_hex(0x1E1E1E), 0);
 
     // Create left panel for user list
-    lv_obj_t* left_panel = lv_obj_create(main_cont);
+    lv_obj_t* left_panel = lv_obj_create(main_window);
     lv_obj_set_size(left_panel, 250, lv_pct(100));
     lv_obj_align(left_panel, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_bg_color(left_panel, lv_color_hex(0x2D2D2D), 0);
@@ -217,7 +222,7 @@ void create_chat_ui() {
     lv_obj_set_style_pad_gap(user_list, 2, 0);
 
     // Create right panel for chat
-    lv_obj_t* right_panel = lv_obj_create(main_cont);
+    lv_obj_t* right_panel = lv_obj_create(main_window);
     lv_obj_set_size(right_panel, 730, lv_pct(100));
     lv_obj_align(right_panel, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_set_style_bg_color(right_panel, lv_color_hex(0x1E1E1E), 0);
@@ -278,6 +283,19 @@ void create_chat_ui() {
     lv_label_set_text(send_label, "Send");
     lv_obj_set_style_text_color(send_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(send_label);
+
+    return main_window;
+}
+
+// Function to setup keyboard handling for main chat interface
+void setup_main_keyboard_handling() {
+    if(keyboard_device && input_textarea) {
+        lv_group_t* main_group = lv_group_create();
+        lv_group_add_obj(main_group, input_textarea);
+        lv_group_add_obj(main_group, send_btn);
+        lv_indev_set_group(keyboard_device, main_group);
+        lv_group_focus_obj(input_textarea);
+    }
 }
 
 // Function to handle login attempt
@@ -303,107 +321,9 @@ void attempt_login(const std::string& username) {
             add_message_to_chat("System", "Failed to connect to server. Running in offline mode.", false);
         }
     }
-}
-
-// Event handler for login button
-static void login_btn_event_cb(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
     
-    if(code == LV_EVENT_CLICKED) {
-        const char* username_text = lv_textarea_get_text(username_input);
-        std::string username(username_text ? username_text : "");
-        
-        // Close the modal
-        lv_obj_del(login_modal);
-        login_modal = nullptr;
-        login_completed = true;
-        
-        // Attempt login
-        attempt_login(username);
-    }
-}
-
-// Event handler for login dialog key events (Enter to login)
-static void login_input_event_cb(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    
-    if(code == LV_EVENT_KEY) {
-        uint32_t key = lv_indev_get_key(lv_indev_get_act());
-        if(key == LV_KEY_ENTER) {
-            // Trigger login
-            const char* username_text = lv_textarea_get_text(username_input);
-            std::string username(username_text ? username_text : "");
-            
-            // Close the modal
-            lv_obj_del(login_modal);
-            login_modal = nullptr;
-            login_completed = true;
-            
-            // Attempt login
-            attempt_login(username);
-        }
-    }
-}
-
-// Function to create login modal dialog
-void create_login_dialog() {
-    // Create modal background
-    login_modal = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(login_modal, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(login_modal, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_bg_opa(login_modal, 180, 0);  // Semi-transparent
-    lv_obj_clear_flag(login_modal, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Create dialog container
-    lv_obj_t* dialog = lv_obj_create(login_modal);
-    lv_obj_set_size(dialog, 400, 250);
-    lv_obj_center(dialog);
-    lv_obj_set_style_bg_color(dialog, lv_color_hex(0x2D2D2D), 0);
-    lv_obj_set_style_border_color(dialog, lv_color_hex(0x007ACC), 0);
-    lv_obj_set_style_border_width(dialog, 2, 0);
-    lv_obj_set_style_radius(dialog, 10, 0);
-    lv_obj_clear_flag(dialog, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Title
-    lv_obj_t* title = lv_label_create(dialog);
-    lv_label_set_text(title, "Welcome to SimpleIM");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
-
-    // Username label
-    lv_obj_t* username_label = lv_label_create(dialog);
-    lv_label_set_text(username_label, "Enter your username:");
-    lv_obj_set_style_text_color(username_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(username_label, LV_ALIGN_TOP_LEFT, 20, 70);
-
-    // Username input
-    username_input = lv_textarea_create(dialog);
-    lv_obj_set_size(username_input, 360, 40);
-    lv_obj_align(username_input, LV_ALIGN_TOP_LEFT, 20, 100);
-    lv_textarea_set_placeholder_text(username_input, "Username");
-    lv_obj_set_style_bg_color(username_input, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_text_color(username_input, lv_color_hex(0xFFFFFF), 0);
-    lv_textarea_set_one_line(username_input, true);
-    lv_obj_add_event_cb(username_input, login_input_event_cb, LV_EVENT_KEY, nullptr);
-
-    // Login button
-    lv_obj_t* login_btn = lv_button_create(dialog);
-    lv_obj_set_size(login_btn, 120, 40);
-    lv_obj_align(login_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
-    lv_obj_add_event_cb(login_btn, login_btn_event_cb, LV_EVENT_CLICKED, nullptr);
-    lv_obj_set_style_bg_color(login_btn, lv_color_hex(0x007ACC), 0);
-
-    lv_obj_t* login_label = lv_label_create(login_btn);
-    lv_label_set_text(login_label, "Connect");
-    lv_obj_set_style_text_color(login_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(login_label);
-
-    // Focus on the input field
-    lv_group_t* group = lv_group_create();
-    lv_group_add_obj(group, username_input);
-    lv_indev_set_group(lv_indev_get_next(nullptr), group);
+    // Setup keyboard handling for main chat interface
+    setup_main_keyboard_handling();
 }
 
 int main(void)
@@ -411,43 +331,60 @@ int main(void)
     std::cout << "Starting SimpleIM GUI Client..." << std::endl;
     
     // Set up signal handler for Ctrl+C
-    signal(SIGINT, signal_handler);
+    // signal(SIGINT, signal_handler);
 
-    // Initialize LVGL
+    std::filesystem::current_path(std::filesystem::canonical("/proc/self/exe").parent_path());
     lv_init();
+    lv_tick_set_cb(tick_handler);
 
-    // Create an SDL window
     lv_display_t* disp = lv_sdl_window_create(1000, 700);
+    lv_sdl_window_set_title(disp, "Simple IM");
     
     // Add mouse and keyboard support
     lv_indev_t* mouse = lv_sdl_mouse_create();
     lv_indev_t* mousewheel = lv_sdl_mousewheel_create();
-    lv_indev_t* keyboard = lv_sdl_keyboard_create();
+    keyboard_device = lv_sdl_keyboard_create();
 
-    // Create the chat UI
-    create_chat_ui();
+    // Create the chat UI and get reference to main window
+    lv_obj_t* main_window = create_chat_ui();
 
     // Initialize networking
     client = new SimpleIMClient();
     
-    // Show login dialog
-    create_login_dialog();
-
     std::cout << "LVGL Chat UI initialized successfully!" << std::endl;
     std::cout << "Window created: 1000x700" << std::endl;
     std::cout << "Mouse and keyboard input enabled" << std::endl;
+
+    // Load the main screen first
+    lv_scr_load(main_window);
+    
+    // Process initial LVGL updates
+    lv_timer_handler();
+    
+    // Now create and show login dialog after LVGL is running
+    login_dialog = new im_gui::LoginDialog([](const std::string& username) {
+        attempt_login(username);
+    });
+    login_dialog->show();
+    
+    // Process the dialog show() operation
+    lv_timer_handler(); 
+    
     std::cout << "Waiting for login..." << std::endl;
 
-    // Main event loop
-    while(running) {
-        // Let LVGL handle tasks
-        uint32_t time_till_next = lv_timer_handler();
-        
-        // Sleep for the time till next task
-        usleep(time_till_next * 1000);
+    constexpr std::chrono::milliseconds lv_delay{1};
+    while(!m_terminate) {
+
+        lv_timer_handler();
+        std::this_thread::sleep_for(lv_delay);
     }
 
     // Clean up
+    if (login_dialog) {
+        delete login_dialog;
+        login_dialog = nullptr;
+    }
+    
     if (client) {
         client->disconnectFromServer();
         delete client;
@@ -455,5 +392,6 @@ int main(void)
     }
 
     std::cout << "Exiting SimpleIM GUI Client..." << std::endl;
+    lv_deinit();
     return 0;
 }

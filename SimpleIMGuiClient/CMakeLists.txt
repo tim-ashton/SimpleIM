@@ -4,7 +4,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 project(SimpleIMGuiClient)
 
+set(header_files
+    LoginDialog.h
+)
+
 add_executable(${PROJECT_NAME}
+    ${header_files}
+    LoginDialog.cpp
     main.cpp
 )
 

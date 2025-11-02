@@ -61,6 +61,12 @@
         "span": "cpp",
         "variant": "cpp",
         "map": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "bitset": "cpp",
+        "list": "cpp",
+        "regex": "cpp",
+        "fstream": "cpp",
+        "cinttypes": "cpp",
+        "codecvt": "cpp"
     }
 }
