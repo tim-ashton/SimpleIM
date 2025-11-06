@@ -26,3 +26,5 @@ RUN apt update && apt upgrade -y && \
     libglu1-mesa-dev \
     mesa-utils \
     && apt clean && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
