@@ -137,11 +137,7 @@ void LoginDialog::hide()
 {
     if (m_modal) {
         lv_obj_add_flag(m_modal, LV_OBJ_FLAG_HIDDEN);
-        
-        // Release keyboard control when hiding
-        if (m_keyboard_device && m_input_group) {
-            lv_indev_set_group(m_keyboard_device, nullptr);
-        }
+
     }
 }
 
