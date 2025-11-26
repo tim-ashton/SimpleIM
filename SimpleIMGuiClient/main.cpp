@@ -40,6 +40,7 @@ static std::vector<im_gui::EventSubscription> event_subscriptions;
 
 // Input devices (for main chat interface)
 static lv_indev_t* keyboard_device = nullptr;
+static lv_group_t* main_input_group = nullptr;
 
 // Forward declarations
 void attempt_login(const std::string& username);
@@ -322,7 +323,24 @@ lv_obj_t* create_chat_ui() {
     lv_obj_align(input_textarea, LV_ALIGN_LEFT_MID, 10, 0);
     lv_textarea_set_placeholder_text(input_textarea, "Type your message...");
     lv_obj_set_style_bg_color(input_textarea, lv_color_hex(0x404040), 0);
+    
+    // Set text color for all parts (like in LoginDialog)
     lv_obj_set_style_text_color(input_textarea, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_color(input_textarea, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_color(input_textarea, lv_color_hex(0xFFFFFF), LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_color(input_textarea, lv_color_hex(0x000000), LV_PART_CURSOR);
+    lv_obj_set_style_bg_color(input_textarea, lv_color_hex(0xFFFFFF), LV_PART_CURSOR);
+    
+    // Ensure proper padding for text display
+    lv_obj_set_style_pad_left(input_textarea, 8, 0);
+    lv_obj_set_style_pad_right(input_textarea, 8, 0);
+    lv_obj_set_style_pad_top(input_textarea, 8, 0);
+    lv_obj_set_style_pad_bottom(input_textarea, 8, 0);
+    
+    // Make it focusable and add focus state
+    lv_obj_add_flag(input_textarea, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_add_state(input_textarea, LV_STATE_FOCUSED);
+    
     lv_obj_add_event_cb(input_textarea, input_event_cb, LV_EVENT_KEY, nullptr);
 
     // Create send button
@@ -343,11 +361,17 @@ lv_obj_t* create_chat_ui() {
 // Function to setup keyboard handling for main chat interface
 void setup_main_keyboard_handling() {
     if(keyboard_device && input_textarea) {
-        lv_group_t* main_group = lv_group_create();
-        lv_group_add_obj(main_group, input_textarea);
-        lv_group_add_obj(main_group, send_btn);
-        lv_indev_set_group(keyboard_device, main_group);
+        // Create the main input group if it doesn't exist
+        if (!main_input_group) {
+            main_input_group = lv_group_create();
+        }
+        
+        lv_group_add_obj(main_input_group, input_textarea);
+        lv_group_add_obj(main_input_group, send_btn);
+        lv_indev_set_group(keyboard_device, main_input_group);
         lv_group_focus_obj(input_textarea);
+        
+        lv_obj_add_state(input_textarea, LV_STATE_FOCUSED);
     }
 }
 
@@ -376,8 +400,6 @@ void attempt_login(const std::string& username) {
             m_event_handler->NotifySubscribers(im_gui::Event::LOGIN_SUCCESS, current_username); // Still show as logged in
         }
     }
-    
-    // Setup keyboard handling for main chat interface
     setup_main_keyboard_handling();
 }
 
@@ -423,10 +445,7 @@ int main(void)
 
     // Load the main screen first
     lv_scr_load(main_window);
-    
-    // Process initial LVGL updates
-    lv_timer_handler();
-    
+       
     // Create login dialog but don't show it immediately
     login_dialog = new im_gui::LoginDialog(m_event_handler); 
     
@@ -434,16 +453,20 @@ int main(void)
 
     constexpr std::chrono::milliseconds lv_delay{1};
     while(!m_terminate) {
-        // Process custom events first
-        m_event_handler->ProcessEvents();
-        
-        // Then process LVGL events
-        lv_timer_handler();
         std::this_thread::sleep_for(lv_delay);
+        lv_timer_handler();
+
+        m_event_handler->ProcessEvents();
     }
 
     // Clean up
     event_subscriptions.clear();
+    
+    // Clean up input group
+    if (main_input_group) {
+        lv_group_del(main_input_group);
+        main_input_group = nullptr;
+    }
       
     if (login_dialog) {
         delete login_dialog;
