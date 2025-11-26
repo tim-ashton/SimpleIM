@@ -42,6 +42,9 @@ static std::vector<im_gui::EventSubscription> event_subscriptions;
 static lv_indev_t* keyboard_device = nullptr;
 static lv_group_t* main_input_group = nullptr;
 
+lv_obj_t* screen = nullptr;
+lv_obj_t* main_window = nullptr;
+
 // Forward declarations
 void attempt_login(const std::string& username);
 
@@ -234,16 +237,17 @@ static void login_btn_event_cb(lv_event_t * e)
     
     if(code == LV_EVENT_CLICKED) {
         std::cout << "Login button clicked!" << std::endl;
-        if (login_dialog) {
-            login_dialog->show();
-            lv_timer_handler(); // Process the dialog show() operation
-        }
+        login_dialog = new im_gui::LoginDialog(m_event_handler); 
+        login_dialog->show();
     }
 }
 
 lv_obj_t* create_chat_ui() {
 
-    lv_obj_t* main_window = lv_obj_create(lv_scr_act());
+    screen = lv_obj_create(nullptr);
+    lv_screen_load(screen);
+
+    main_window = lv_obj_create(screen);
     lv_obj_set_size(main_window, lv_pct(100), lv_pct(100));
     lv_obj_set_style_pad_all(main_window, 5, 0);
     lv_obj_set_style_bg_color(main_window, lv_color_hex(0x1E1E1E), 0);
@@ -365,7 +369,7 @@ void setup_main_keyboard_handling() {
         if (!main_input_group) {
             main_input_group = lv_group_create();
         }
-        
+
         lv_group_add_obj(main_input_group, input_textarea);
         lv_group_add_obj(main_input_group, send_btn);
         lv_indev_set_group(keyboard_device, main_input_group);
@@ -400,6 +404,12 @@ void attempt_login(const std::string& username) {
             m_event_handler->NotifySubscribers(im_gui::Event::LOGIN_SUCCESS, current_username); // Still show as logged in
         }
     }
+
+    if (login_dialog) {
+        delete login_dialog;
+        login_dialog = nullptr;
+    }
+
     setup_main_keyboard_handling();
 }
 
@@ -422,8 +432,7 @@ int main(void)
     lv_indev_t* mousewheel = lv_sdl_mousewheel_create();
     keyboard_device = lv_sdl_keyboard_create();
 
-    // Create the chat UI and get reference to main window
-    lv_obj_t* main_window = create_chat_ui();
+    create_chat_ui();
 
     // Initialize event coordinator
     m_event_handler = std::make_shared<im_gui::EventHandler>();
@@ -441,14 +450,7 @@ int main(void)
     
     std::cout << "LVGL Chat UI initialized successfully!" << std::endl;
     std::cout << "Window created: 1000x700" << std::endl;
-    std::cout << "Mouse and keyboard input enabled" << std::endl;
-
-    // Load the main screen first
-    lv_scr_load(main_window);
-       
-    // Create login dialog but don't show it immediately
-    login_dialog = new im_gui::LoginDialog(m_event_handler); 
-    
+    std::cout << "Mouse and keyboard input enabled" << std::endl; 
     std::cout << "Chat interface ready. Click the Login button to connect." << std::endl;
 
     constexpr std::chrono::milliseconds lv_delay{1};
@@ -466,11 +468,6 @@ int main(void)
     if (main_input_group) {
         lv_group_del(main_input_group);
         main_input_group = nullptr;
-    }
-      
-    if (login_dialog) {
-        delete login_dialog;
-        login_dialog = nullptr;
     }
     
     if (client) {
