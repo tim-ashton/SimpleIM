@@ -2,7 +2,7 @@
 
 #include <lvgl.h>
 #include <string>
-#include <functional>
+#include "EventHandler.h"
 
 namespace im_gui
 {
@@ -10,11 +10,7 @@ namespace im_gui
 class LoginDialog
 {
 public:
-    // Callback type for when login is completed
-    using LoginCallback = std::function<void(const std::string& username)>;
-
-public:
-    LoginDialog(LoginCallback callback);
+    LoginDialog(const std::shared_ptr<EventHandler> &event_handler);
     ~LoginDialog();
 
     void show();   
@@ -31,7 +27,7 @@ private:
     lv_indev_t* m_keyboard_device = nullptr;
     lv_group_t* m_input_group = nullptr;
     
-    LoginCallback m_login_callback;
+    std::shared_ptr<EventHandler> m_event_handler;
     
     static void login_btn_event_cb(lv_event_t* e);
     static void username_input_event_cb(lv_event_t* e);

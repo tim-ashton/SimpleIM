@@ -67,6 +67,8 @@
         "regex": "cpp",
         "fstream": "cpp",
         "cinttypes": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "lv_indev.h": "c",
+        "any": "cpp"
     }
 }

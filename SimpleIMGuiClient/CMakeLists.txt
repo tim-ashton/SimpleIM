@@ -6,11 +6,13 @@ project(SimpleIMGuiClient)
 
 set(header_files
     LoginDialog.h
+    EventHandler.h
 )
 
 add_executable(${PROJECT_NAME}
     ${header_files}
     LoginDialog.cpp
+    EventHandler.cpp
     main.cpp
 )
 

@@ -1,6 +1,7 @@
 #include "lvgl.h"
 #include <SimpleIMClient.h>
 #include "LoginDialog.h"
+#include "EventHandler.h"
 
 #include <unistd.h>
 #include <signal.h>
@@ -29,8 +30,19 @@ static lv_obj_t* send_btn = nullptr;
 // Login dialog
 static im_gui::LoginDialog* login_dialog = nullptr;
 
+// Login UI elements
+static lv_obj_t* login_btn = nullptr;
+static lv_obj_t* username_label = nullptr;
+
+// Event coordinator
+static std::shared_ptr<im_gui::EventHandler> m_event_handler = nullptr;
+static std::vector<im_gui::EventSubscription> event_subscriptions;
+
 // Input devices (for main chat interface)
 static lv_indev_t* keyboard_device = nullptr;
+
+// Forward declarations
+void attempt_login(const std::string& username);
 
 // void signal_handler(int signal) {
 //     m_terminate = true;
@@ -182,14 +194,49 @@ static void input_event_cb(lv_event_t * e)
     }
 }
 
-// Event handler for exit
-static void exit_event_cb(lv_event_t * e)
+// Forward declarations
+void attempt_login(const std::string& username);
+
+// Event handler functions
+void handle_login_requested(im_gui::Event event, const std::any& data) {
+    try {
+        std::string username = std::any_cast<std::string>(data);
+        attempt_login(username);
+    } catch (const std::bad_any_cast& e) {
+        std::cerr << "Error handling login request: " << e.what() << std::endl;
+    }
+}
+
+void handle_login_success(im_gui::Event event, const std::any& data) {
+    try {
+        std::string username = std::any_cast<std::string>(data);
+        std::cout << "Login successful for: " << username << std::endl;
+        
+        // Hide login button and show username
+        if (login_btn) {
+            lv_obj_add_flag(login_btn, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (username_label) {
+            std::string display_text = "User: " + username;
+            lv_label_set_text(username_label, display_text.c_str());
+            lv_obj_clear_flag(username_label, LV_OBJ_FLAG_HIDDEN);
+        }
+    } catch (const std::bad_any_cast& e) {
+        std::cerr << "Error handling login success: " << e.what() << std::endl;
+    }
+}
+
+// Event handler for login button
+static void login_btn_event_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     
     if(code == LV_EVENT_CLICKED) {
-        std::cout << "Exit button clicked!" << std::endl;      
-        m_terminate = true;
+        std::cout << "Login button clicked!" << std::endl;
+        if (login_dialog) {
+            login_dialog->show();
+            lv_timer_handler(); // Process the dialog show() operation
+        }
     }
 }
 
@@ -233,17 +280,23 @@ lv_obj_t* create_chat_ui() {
     lv_obj_set_style_text_color(chat_title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(chat_title, LV_ALIGN_TOP_MID, 0, 10);
 
-    // Create exit button (top right)
-    lv_obj_t* exit_btn = lv_button_create(right_panel);
-    lv_obj_set_size(exit_btn, 60, 30);
-    lv_obj_align(exit_btn, LV_ALIGN_TOP_RIGHT, -10, 5);
-    lv_obj_add_event_cb(exit_btn, exit_event_cb, LV_EVENT_CLICKED, nullptr);
-    lv_obj_set_style_bg_color(exit_btn, lv_color_hex(0xFF4444), 0);
+    // Create login button (top right)
+    login_btn = lv_button_create(right_panel);
+    lv_obj_set_size(login_btn, 80, 30);
+    lv_obj_align(login_btn, LV_ALIGN_TOP_RIGHT, -10, 5);
+    lv_obj_add_event_cb(login_btn, login_btn_event_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_set_style_bg_color(login_btn, lv_color_hex(0x007ACC), 0);
 
-    lv_obj_t* exit_label = lv_label_create(exit_btn);
-    lv_label_set_text(exit_label, "Exit");
-    lv_obj_set_style_text_color(exit_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(exit_label);
+    lv_obj_t* login_label = lv_label_create(login_btn);
+    lv_label_set_text(login_label, "Login");
+    lv_obj_set_style_text_color(login_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(login_label);
+
+    // Create username label (hidden initially)
+    username_label = lv_label_create(right_panel);
+    lv_obj_align(username_label, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_obj_set_style_text_color(username_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_add_flag(username_label, LV_OBJ_FLAG_HIDDEN);
 
     // Create chat history area
     chat_list = lv_obj_create(right_panel);
@@ -317,8 +370,10 @@ void attempt_login(const std::string& username) {
         
         if (client->connected()) {
             add_message_to_chat("System", "Connected! You can now chat.", false);
+            m_event_handler->NotifySubscribers(im_gui::Event::LOGIN_SUCCESS, current_username);
         } else {
             add_message_to_chat("System", "Failed to connect to server. Running in offline mode.", false);
+            m_event_handler->NotifySubscribers(im_gui::Event::LOGIN_SUCCESS, current_username); // Still show as logged in
         }
     }
     
@@ -348,6 +403,17 @@ int main(void)
     // Create the chat UI and get reference to main window
     lv_obj_t* main_window = create_chat_ui();
 
+    // Initialize event coordinator
+    m_event_handler = std::make_shared<im_gui::EventHandler>();
+    
+    // Subscribe to events
+    event_subscriptions.push_back(
+        m_event_handler->Subscribe(im_gui::Event::LOGIN_REQUESTED, handle_login_requested)
+    );
+    event_subscriptions.push_back(
+        m_event_handler->Subscribe(im_gui::Event::LOGIN_SUCCESS, handle_login_success)
+    );
+    
     // Initialize networking
     client = new SimpleIMClient();
     
@@ -361,25 +427,24 @@ int main(void)
     // Process initial LVGL updates
     lv_timer_handler();
     
-    // Now create and show login dialog after LVGL is running
-    login_dialog = new im_gui::LoginDialog([](const std::string& username) {
-        attempt_login(username);
-    });
-    login_dialog->show();
+    // Create login dialog but don't show it immediately
+    login_dialog = new im_gui::LoginDialog(m_event_handler); 
     
-    // Process the dialog show() operation
-    lv_timer_handler(); 
-    
-    std::cout << "Waiting for login..." << std::endl;
+    std::cout << "Chat interface ready. Click the Login button to connect." << std::endl;
 
     constexpr std::chrono::milliseconds lv_delay{1};
     while(!m_terminate) {
-
+        // Process custom events first
+        m_event_handler->ProcessEvents();
+        
+        // Then process LVGL events
         lv_timer_handler();
         std::this_thread::sleep_for(lv_delay);
     }
 
     // Clean up
+    event_subscriptions.clear();
+      
     if (login_dialog) {
         delete login_dialog;
         login_dialog = nullptr;

@@ -4,14 +4,14 @@
 namespace im_gui
 {
 
-LoginDialog::LoginDialog(LoginCallback callback)
+LoginDialog::LoginDialog(const std::shared_ptr<EventHandler> &event_handler)
     : m_modal(nullptr)
     , m_dialog(nullptr)
     , m_username_input(nullptr)
     , m_login_btn(nullptr)
     , m_keyboard_device(nullptr)
     , m_input_group(nullptr)
-    , m_login_callback(callback)
+    , m_event_handler(event_handler)
 {   
     // Create modal background on the top layer to ensure it's above everything
     lv_obj_t* top_layer = lv_layer_top();
@@ -20,6 +20,9 @@ LoginDialog::LoginDialog(LoginCallback callback)
     lv_obj_set_style_bg_color(m_modal, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(m_modal, 180, 0);  // Semi-transparent
     lv_obj_clear_flag(m_modal, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // Hide the modal initially - only show when explicitly called
+    lv_obj_add_flag(m_modal, LV_OBJ_FLAG_HIDDEN);
     
     // Set user data to this instance for callbacks
     lv_obj_set_user_data(m_modal, this);
@@ -183,7 +186,7 @@ lv_indev_t* LoginDialog::findKeyboardDevice()
 
 void LoginDialog::performLogin()
 {
-    if (m_username_input && m_login_callback) {
+    if (m_username_input && m_event_handler) {
         const char* username_text = lv_textarea_get_text(m_username_input);
         std::string username(username_text ? username_text : "");
         
@@ -191,7 +194,7 @@ void LoginDialog::performLogin()
         
         hide();
         
-        m_login_callback(username);
+        m_event_handler->NotifySubscribers(Event::LOGIN_REQUESTED, username);
     }
 }
 

@@ -83,7 +83,7 @@
             "configurations": [
                 "(gdb)LaunchServer",
                 // "(gdb)LaunchGuiClient",
-                "(gdb)LaunchGuiClient",
+                // "(gdb)LaunchGuiClient",
                 "(gdb)LaunchGuiClient"
             ],
             "stopAll": true
