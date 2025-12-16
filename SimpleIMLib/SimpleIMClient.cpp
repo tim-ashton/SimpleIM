@@ -107,8 +107,7 @@ void SimpleIMClient::queueMessage(const Message& message)
     if(!m_connected) {
         std::cerr << __FUNCTION__ << "Warning: not connected. Cannot queue message." << std::endl;
         return;
-    }
-    
+    } 
     m_outgoingMessages.push(message);
 }
 
@@ -131,15 +130,13 @@ void SimpleIMClient::sendQueuedMessage(const Message& message)
 void SimpleIMClient::startNetworkThread()
 {
     if (!m_networkThread) {
-        m_networkThread.reset(new std::thread([this]() {
-            networkLoop();
-        }));
+        m_networkThread.reset(new std::thread([this]() { networkLoop(); }));
     }
 }
 
 void SimpleIMClient::networkLoop()
 {
-    std::cout << "Network thread started" << std::endl;
+    std::cout << __FUNCTION__ << "Network thread started" << std::endl;
     
     while (!m_terminate && m_connected && m_clientSocket > -1) {
         fd_set readfds, writefds;
@@ -161,7 +158,7 @@ void SimpleIMClient::networkLoop()
         
         if (result < 0) {
             if (errno == EINTR) continue; // Interrupted system call, retry
-            std::cerr << "Error in select(): " << strerror(errno) << std::endl;
+            std::cerr << __FUNCTION__ << "Error in select(): " << strerror(errno) << std::endl;
             break;
         }
         
@@ -171,7 +168,7 @@ void SimpleIMClient::networkLoop()
             int messagesSent = 0;
             Message msg(static_cast<MessageType>(0), "");
             while (messagesSent < 10 && m_outgoingMessages.tryPop(msg, std::chrono::milliseconds(0))) {
-                std::cout << "Sending queued message (batch " << messagesSent + 1 << ")..." << std::endl;
+                std::cout << __FUNCTION__ << "Sending queued message (batch " << messagesSent + 1 << ")..." << std::endl;
                 sendQueuedMessage(msg);
                 if (!m_connected) break; // Stop if send failed
                 messagesSent++;
@@ -324,34 +321,10 @@ void SimpleIMClient::handleReceivedMessage(MessageType type, const std::string& 
             handleClientDisconnected(data);
             break;
         case MessageType::ChatMessageBroadcast:
-            std::cout << "Chat: " << data << std::endl;
-            // Invoke callback if set
-            if (m_chatMessageCallback) {
-                // Parse username from message format "username: message"
-                size_t colonPos = data.find(": ");
-                if (colonPos != std::string::npos) {
-                    std::string username = data.substr(0, colonPos);
-                    std::string message = data.substr(colonPos + 2);
-                    m_chatMessageCallback(username, message);
-                } else {
-                    m_chatMessageCallback("Unknown", data);
-                }
-            }
+            handleChatMessageBroadcast(data);
             break;
         case MessageType::ChatMessageDM:
-            std::cout << "Direct Message: " << data << std::endl;
-            // Invoke callback if set
-            if (m_chatMessageCallback) {
-                // Parse DM format "from_user: message"
-                size_t colonPos = data.find(": ");
-                if (colonPos != std::string::npos) {
-                    std::string username = data.substr(0, colonPos);
-                    std::string message = data.substr(colonPos + 2);
-                    m_chatMessageCallback(username, message);
-                } else {
-                    m_chatMessageCallback("Unknown", data);
-                }
-            }
+            handleChatMessageDm(data);
             break;
         default:
             std::cout << "Received unknown message type." << std::endl;
@@ -401,5 +374,39 @@ void SimpleIMClient::handleClientDisconnected(const std::string& data)
     // Invoke callback if set
     if (m_userDisconnectedCallback) {
         m_userDisconnectedCallback(data);
+    }
+}
+
+void SimpleIMClient::handleChatMessageBroadcast(const std::string &data)
+{
+    std::cout << __FUNCTION__ << std::endl;
+
+    if (m_chatMessageCallback) {
+        // Parse username from message format "username: message"
+        size_t colonPos = data.find(": ");
+        if (colonPos != std::string::npos) {
+            std::string username = data.substr(0, colonPos);
+            std::string message = data.substr(colonPos + 2);
+            m_chatMessageCallback(username, message);
+        } else {
+            m_chatMessageCallback("Unknown", data);
+        }
+    }
+}
+
+void SimpleIMClient::handleChatMessageDm(const std::string &data)
+{
+    std::cout << __FUNCTION__ << std::endl;
+    // Invoke callback if set
+    if (m_chatMessageCallback) {
+        // Parse DM format "from_user: message"
+        size_t colonPos = data.find(": ");
+        if (colonPos != std::string::npos) {
+            std::string username = data.substr(0, colonPos);
+            std::string message = data.substr(colonPos + 2);
+            m_chatMessageCallback(username, message);
+        } else {
+            m_chatMessageCallback("Unknown", data);
+        }
     }
 }

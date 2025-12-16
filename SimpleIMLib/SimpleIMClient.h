@@ -70,4 +70,6 @@ private:
     void handleConnectedClientsList(const std::string& data);
     void handleClientConnected(const std::string& data);
     void handleClientDisconnected(const std::string& data);
+    void handleChatMessageBroadcast(const std::string& data);
+    void handleChatMessageDm(const std::string& data);
 };
