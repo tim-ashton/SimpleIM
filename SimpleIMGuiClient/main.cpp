@@ -128,6 +128,28 @@ void clear_user_list() {
     lv_obj_clean(user_list);
 }
 
+// Function to remove a specific user from the user list
+void remove_user_from_list(const std::string& username) {
+    if (!user_list) return;
+    
+    // Iterate through user list children to find and remove the specific user
+    uint32_t child_count = lv_obj_get_child_count(user_list);
+    for (uint32_t i = 0; i < child_count; i++) {
+        lv_obj_t* child = lv_obj_get_child(user_list, i);
+        if (child) {
+            // Get the label (first child of the user item)
+            lv_obj_t* label = lv_obj_get_child(child, 0);
+            if (label) {
+                const char* label_text = lv_label_get_text(label);
+                if (label_text && std::string(label_text) == username) {
+                    lv_obj_del(child);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 // Function to update user list from comma-separated string
 void update_user_list(const std::string& userListStr) {
     clear_user_list();
@@ -447,6 +469,27 @@ int main(void)
     
     // Initialize networking
     client = new SimpleIMClient();
+    
+    // Set up callbacks to connect client events with GUI updates
+    client->setUserConnectedCallback([](const std::string& username) {
+        std::cout << "GUI: Adding user to list: " << username << std::endl;
+        add_user_to_list(username, true);
+    });
+    
+    client->setUserDisconnectedCallback([](const std::string& username) {
+        std::cout << "GUI: Removing user from list: " << username << std::endl;
+        remove_user_from_list(username);
+    });
+    
+    client->setConnectedUsersListCallback([](const std::string& userList) {
+        std::cout << "GUI: Updating user list: " << userList << std::endl;
+        update_user_list(userList);
+    });
+    
+    client->setChatMessageCallback([](const std::string& username, const std::string& message) {
+        std::cout << "GUI: Adding chat message from " << username << ": " << message << std::endl;
+        add_message_to_chat(username, message, false);
+    });
     
     std::cout << "LVGL Chat UI initialized successfully!" << std::endl;
     std::cout << "Window created: 1000x700" << std::endl;

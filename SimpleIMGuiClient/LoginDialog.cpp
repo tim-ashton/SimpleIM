@@ -78,8 +78,8 @@ LoginDialog::LoginDialog(const std::shared_ptr<EventHandler> &event_handler)
     lv_obj_add_event_cb(m_username_input, username_focus_cb, LV_EVENT_CLICKED, nullptr);
     
     // Add callbacks to refresh display on any text changes
-    lv_obj_add_event_cb(m_username_input, username_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
-    lv_obj_add_event_cb(m_username_input, username_value_changed_cb, LV_EVENT_INSERT, nullptr);
+    // lv_obj_add_event_cb(m_username_input, username_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    // lv_obj_add_event_cb(m_username_input, username_value_changed_cb, LV_EVENT_INSERT, nullptr);
     
     lv_obj_add_flag(m_username_input, LV_OBJ_FLAG_CLICK_FOCUSABLE);
     lv_obj_add_state(m_username_input, LV_STATE_FOCUSED);
@@ -259,18 +259,18 @@ void LoginDialog::username_focus_cb(lv_event_t* e)
     }
 }
 
-void LoginDialog::username_value_changed_cb(lv_event_t* e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
+// void LoginDialog::username_value_changed_cb(lv_event_t* e)
+// {
+//     lv_event_code_t code = lv_event_get_code(e);
     
-    if(code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_INSERT) {
-        std::cout << "Username text changed (event: " << code << ")" << std::endl;
-        lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
+//     if(code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_INSERT) {
+//         std::cout << "Username text changed (event: " << code << ")" << std::endl;
+//         lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
         
-        // Get and print current text for debugging
-        const char* current_text = lv_textarea_get_text(target);
-        std::cout << "Current text in textarea: '" << (current_text ? current_text : "NULL") << "'" << std::endl;
-    }
-}
+//         // Get and print current text for debugging
+//         // const char* current_text = lv_textarea_get_text(target);
+//         // std::cout << "Current text in textarea: '" << (current_text ? current_text : "NULL") << "'" << std::endl;
+//     }
+// }
 
 } // end namespace

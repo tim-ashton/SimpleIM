@@ -7,6 +7,7 @@ project(SimpleIMLib)
 
 ADD_LIBRARY(${PROJECT_NAME} STATIC
     Message.cpp
+    MessageQueue.cpp
     SimpleIMClient.cpp
 )
 

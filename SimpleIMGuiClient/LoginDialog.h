@@ -32,7 +32,7 @@ private:
     static void login_btn_event_cb(lv_event_t* e);
     static void username_input_event_cb(lv_event_t* e);
     static void username_focus_cb(lv_event_t* e);
-    static void username_value_changed_cb(lv_event_t* e);
+    // static void username_value_changed_cb(lv_event_t* e);
     
     void setupKeyboardHandling();
     lv_indev_t* findKeyboardDevice();
