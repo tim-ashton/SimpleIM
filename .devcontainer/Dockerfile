@@ -1,5 +1,7 @@
 FROM ubuntu:24.04
 
+ENV DEBUGINFOD_URLS=""
+
 RUN apt update && apt upgrade -y && \
     apt install -y --no-install-recommends \
     build-essential \
@@ -18,6 +20,9 @@ RUN apt update && apt upgrade -y && \
     nmap \
     curl \
     wget \
+    ca-certificates \
+    xauth \
+    x11-utils \
     libsdl2-dev \
     libsdl2-image-dev \
     libsdl2-ttf-dev \
@@ -25,6 +30,12 @@ RUN apt update && apt upgrade -y && \
     libgl1-mesa-dev \
     libglu1-mesa-dev \
     mesa-utils \
-    && apt clean && rm -rf /var/lib/apt/lists/*
+    && update-ca-certificates \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+RUN printf '%s\n' \
+    'set debuginfod enabled off' \
+    'set debuginfod verbose 0' \
+    'set debug-file-directory /nonexistent' \
+    > /etc/gdb/gdbinit

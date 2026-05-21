@@ -11,32 +11,7 @@
             "program": "${workspaceFolder}/build/SimpleIMServer/SimpleIMServer",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-        {
-            "name": "(gdb)LaunchCmdLineClient",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/SimpleIMClient/SimpleIMClient",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
+            "cwd": "${workspaceFolder}/build/SimpleIMServer",
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
@@ -59,9 +34,7 @@
             "program": "${workspaceFolder}/build/SimpleIMGuiClient/SimpleIMGuiClient",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}",
-            "environment": [],
-            "externalConsole": false,
+            "cwd": "${workspaceFolder}/build/SimpleIMGuiClient",
             "MIMode": "gdb",
             "setupCommands": [
                 {
@@ -75,14 +48,13 @@
                     "ignoreFailures": true
                 }
             ]
-        }
+        },
     ],
     "compounds": [
         {
             "name": "Launch-Server+Client",
             "configurations": [
                 "(gdb)LaunchServer",
-                // "(gdb)LaunchGuiClient",
                 "(gdb)LaunchGuiClient",
                 "(gdb)LaunchGuiClient"
             ],

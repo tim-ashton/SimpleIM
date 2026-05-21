@@ -4,6 +4,8 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
+  "capAdd": ["SYS_PTRACE"],
+  "securityOpt": ["seccomp=unconfined"],
   "containerUser": "ubuntu",
   "customizations": {
     "settings": {
@@ -12,7 +14,7 @@
     },
     "vscode":{
       "extensions": [
-        "ms-vscode.cpptools",
+        "ms-vscode.cpptools@1.29.3",
         "ms-vscode.cpptools-extension-pack",
         "ms-vscode.cpptools-themes",
         "ms-vscode.cmake-tools",

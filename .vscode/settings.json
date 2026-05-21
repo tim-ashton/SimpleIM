@@ -70,5 +70,6 @@
         "codecvt": "cpp",
         "lv_indev.h": "c",
         "any": "cpp"
-    }
+    },
+    "cmake.automaticReconfigure": false
 }
