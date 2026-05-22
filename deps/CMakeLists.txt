@@ -18,4 +18,4 @@ if(POLICY CMP0135)
 endif()
 
 add_subdirectory(lvgl)
-# add_subdirectory(gtest) //Add me.
+add_subdirectory(gtest)

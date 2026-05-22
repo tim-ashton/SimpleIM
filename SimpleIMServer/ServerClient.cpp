@@ -6,6 +6,32 @@
 #include <cstring>
 #include <vector>
 #include <unistd.h>
+#include <cerrno>
+
+namespace {
+bool recvAll(int socket, char* buffer, size_t length)
+{
+    size_t totalReceived = 0;
+    while (totalReceived < length) {
+        const ssize_t bytesReceived = recv(socket, buffer + totalReceived, length - totalReceived, 0);
+        if (bytesReceived == 0) {
+            return false;
+        }
+
+        if (bytesReceived < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return false;
+        }
+
+        totalReceived += static_cast<size_t>(bytesReceived);
+    }
+
+    return true;
+}
+}
 
 ServerClient::ServerClient(int socket,
                std::function<void(std::string)> disconnectCallback)
@@ -132,23 +158,10 @@ std::optional<MessageHeader> ServerClient::readMessageHeader()
     if (m_socket > -1 && !m_terminate)
     {
         char headerBuffer[5];
-        int bytesReceived = recv(m_socket, headerBuffer, sizeof(headerBuffer), 0);
-        if(bytesReceived == 0) {
-            // Client disconnected normally
-            std::cout << __PRETTY_FUNCTION__ << "Client disconnected." << std::endl;
-            handleSocketError();
-        }
-        else if (bytesReceived == -1)
-        {
+        if (!recvAll(m_socket, headerBuffer, sizeof(headerBuffer))) {
             if (!m_terminate) {
-                std::cerr << __PRETTY_FUNCTION__ << "Error: Could not receive data from client" << std::endl;
+                std::cerr << __PRETTY_FUNCTION__ << "Error: Failed to receive complete header from client" << std::endl;
             }
-            handleSocketError();
-            return std::nullopt;
-        }
-        else if (bytesReceived < sizeof(headerBuffer))
-        {
-            std::cerr << __PRETTY_FUNCTION__ << "Error: Incomplete header received" << std::endl;
             handleSocketError();
             return std::nullopt;
         }
@@ -176,17 +189,10 @@ std::string ServerClient::readMessageData(uint32_t dataLen)
     if (m_socket > -1) {
 
         std::vector<char> payloadBuffer(dataLen);
-        size_t bytesReceived = recv(m_socket, payloadBuffer.data(), dataLen, 0);
-
-        if (bytesReceived == -1) {
+        if (!recvAll(m_socket, payloadBuffer.data(), dataLen)) {
             if (!m_terminate) {
-                std::cerr << __PRETTY_FUNCTION__ << "Error: Could not receive payload from client" << std::endl;
+                std::cerr << __PRETTY_FUNCTION__ << "Error: Failed to receive complete payload from client" << std::endl;
             }
-            handleSocketError();
-            return std::string();
-        } 
-        else if (bytesReceived < dataLen) {
-            std::cerr << __PRETTY_FUNCTION__ << "Error: Incomplete payload received" << std::endl;
             handleSocketError();
             return std::string();
         }
