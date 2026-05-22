@@ -31,6 +31,30 @@ bool recvAll(int socket, char* buffer, size_t length)
 
     return true;
 }
+
+bool sendAll(int socket, const char* buffer, size_t length)
+{
+    size_t totalSent = 0;
+    while (totalSent < length) {
+        const ssize_t bytesSent = send(socket, buffer + totalSent, length - totalSent, 0);
+        if (bytesSent < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return false;
+        }
+
+        if (bytesSent == 0) {
+            return false;
+        }
+
+        totalSent += static_cast<size_t>(bytesSent);
+    }
+
+    return true;
+}
+
 }
 
 ServerClient::ServerClient(int socket,
@@ -238,8 +262,7 @@ bool ServerClient::sendMessage(MessageType type, const std::string& data)
     headerBuffer[0] = static_cast<uint8_t>(type);
     std::memcpy(&headerBuffer[1], &header.length, sizeof(uint32_t));
     
-    int bytesSent = send(m_socket, headerBuffer, sizeof(headerBuffer), 0);
-    if (bytesSent != sizeof(headerBuffer)) {
+    if (!sendAll(m_socket, headerBuffer, sizeof(headerBuffer))) {
         std::cerr << __PRETTY_FUNCTION__ << "Failed to send header" << std::endl;
         handleSocketError();
         return false;
@@ -247,8 +270,7 @@ bool ServerClient::sendMessage(MessageType type, const std::string& data)
     
     // Send data if any
     if (!data.empty()) {
-        bytesSent = send(m_socket, data.c_str(), data.length(), 0);
-        if (bytesSent != static_cast<int>(data.length())) {
+        if (!sendAll(m_socket, data.c_str(), data.length())) {
             std::cerr << __PRETTY_FUNCTION__ << "Failed to send data" << std::endl;
             handleSocketError();
             return false;
