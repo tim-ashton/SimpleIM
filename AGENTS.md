@@ -120,7 +120,7 @@ Before making a large change, Codex must stop and propose a plan.
 
 A change is considered large if it:
 
-- Touches more than about 5 source files.
+- Touches more than about 10 source files.
 - Changes public APIs or exported interfaces.
 - Changes build system structure, CMake presets, CI, or dependency setup.
 - Moves, renames, or deletes files.
