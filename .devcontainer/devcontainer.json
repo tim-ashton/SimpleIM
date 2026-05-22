@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "capAdd": ["SYS_PTRACE"],
+  "capAdd": ["SYS_PTRACE", "SYS_ADMIN"],
   "securityOpt": ["seccomp=unconfined"],
   "containerUser": "ubuntu",
   "customizations": {
