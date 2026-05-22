@@ -96,3 +96,32 @@ Default build flow:
 cmake --preset linux
 cmake --build --preset linux
 ```
+
+## Change size and delivery rules
+
+Prefer small, reviewable changes.
+
+For normal tasks, keep changes focused to one logical concern. Avoid mixing refactoring, formatting, behavior changes, and build-system changes in the same change unless explicitly requested.
+
+Before making a large change, Codex must stop and propose a plan.
+
+A change is considered large if it:
+
+- Touches more than about 5 source files.
+- Changes public APIs or exported interfaces.
+- Changes build system structure, CMake presets, CI, or dependency setup.
+- Moves, renames, or deletes files.
+- Refactors code across multiple modules.
+- Changes behavior in a way that may affect users or saved data.
+- Cannot be validated with the normal build/test commands.
+
+For large changes, first provide:
+
+1. Goal of the change.
+2. Proposed implementation approach.
+3. Files likely to be changed.
+4. Risks or compatibility concerns.
+5. Build/test commands that will be run.
+6. Suggested split into smaller PRs if appropriate.
+
+Do not implement the large change until the user approves the plan.
