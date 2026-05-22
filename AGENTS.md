@@ -29,8 +29,21 @@ cmake --build --preset linux
 - Keep changes focused and minimal, ask and discuss if larger changes become required.
 - Preserve existing code style.
 - Do not reformat unrelated files without asking.
-- ask when requirements are ambiguous
-- do not “guess and implement” when there are multiple valid designs
+- Ask when requirements are ambiguous
+- Do not “guess and implement” when there are multiple valid designs
+- Apply SOLID principles to development, but not strictly. Be pragmatic if it adds complexity to adhere.
+- Attempt to build with unit testing in mind.
+- Add unit tests during development.
+- When items need to be shared across modules, a dedicated file should be created.
+- Always run a build and tests before raising a pull request.
+- When changing existing code and tests exist, run the tests after making changes before updating tests
+
+## Unit testing
+- Unit tests should be created under the "Tests" directory
+- Unit tests will be created using gtest
+- Unit tests should be created as a test fixture class extending ```public ::testing::Test```
+- Unit tests should be created per module and named "Test<the class or file tested>"
+
 
 ## Discussion and approval rules
 
