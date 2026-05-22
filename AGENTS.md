@@ -73,3 +73,26 @@ Codex may proceed directly for clearly scoped, low-risk changes, including:
 - Improving error handling where behavior is already clearly intended.
 
 Even for these changes, keep the diff focused and explain what was changed.
+
+## Build-system changes
+
+The project uses CMake Presets.
+
+Codex may use existing presets to configure, build, and test the project.
+
+Codex must ask before:
+
+- Adding, removing, or renaming presets.
+- Changing the generator.
+- Changing the build directory layout.
+- Changing compiler/toolchain selection.
+- Adding new required system packages.
+- Adding new package managers or dependency mechanisms.
+- Replacing the existing build flow with a different one.
+
+Default build flow:
+
+```bash
+cmake --preset linux
+cmake --build --preset linux
+```
