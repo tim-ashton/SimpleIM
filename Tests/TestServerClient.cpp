@@ -11,6 +11,7 @@
 #include <optional>
 #include <vector>
 #include <cstring>
+#include <arpa/inet.h>
 
 class TestServerClient : public ::testing::Test
 {
@@ -48,6 +49,16 @@ protected:
         return true;
     }
 
+    std::vector<uint8_t> buildRawMessage(MessageType type, const std::string& payload)
+    {
+        std::vector<uint8_t> bytes(5 + payload.size());
+        bytes[0] = static_cast<uint8_t>(type);
+        const uint32_t networkLength = htonl(static_cast<uint32_t>(payload.size()));
+        std::memcpy(&bytes[1], &networkLength, sizeof(networkLength));
+        std::memcpy(&bytes[5], payload.data(), payload.size());
+        return bytes;
+    }
+
     std::optional<MessageHeader> recvHeader()
     {
         char headerBuffer[5];
@@ -59,6 +70,7 @@ protected:
         MessageType type = static_cast<MessageType>(headerBuffer[0]);
         uint32_t payloadLength = 0;
         std::memcpy(&payloadLength, &headerBuffer[1], sizeof(uint32_t));
+        payloadLength = ntohl(payloadLength);
         return MessageHeader(type, payloadLength);
     }
 
@@ -79,8 +91,7 @@ TEST_F(TestServerClient, HandleLogonReadsSplitHeaderAndPayload)
 
     ClientManager manager;
 
-    Message logon(MessageType::UserLogon, "alice");
-    std::vector<uint8_t> bytes = logon.to_bytes();
+    std::vector<uint8_t> bytes = buildRawMessage(MessageType::UserLogon, "alice");
 
     ASSERT_EQ(send(m_sockets[1], bytes.data(), 2, 0), 2);
     ASSERT_EQ(send(m_sockets[1], bytes.data() + 2, 3, 0), 3);
@@ -108,8 +119,7 @@ TEST_F(TestServerClient, HandleLogonFailsWhenPayloadDisconnectsMidMessage)
 
     ClientManager manager;
 
-    Message logon(MessageType::UserLogon, "alice");
-    std::vector<uint8_t> bytes = logon.to_bytes();
+    std::vector<uint8_t> bytes = buildRawMessage(MessageType::UserLogon, "alice");
 
     ASSERT_EQ(send(m_sockets[1], bytes.data(), 5, 0), 5);
     ASSERT_EQ(send(m_sockets[1], bytes.data() + 5, 2, 0), 2);
@@ -127,8 +137,7 @@ TEST_F(TestServerClient, HandleLogonSendsExpectedSuccessMessages)
     ServerClient client(m_sockets[0], [](const std::string&) {});
     ClientManager manager;
 
-    Message logon(MessageType::UserLogon, "alice");
-    ASSERT_TRUE(sendRaw(logon.to_bytes()));
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "alice")));
 
     ASSERT_TRUE(client.handleLogon(&manager));
 
