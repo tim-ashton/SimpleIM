@@ -77,6 +77,19 @@ protected:
     int m_sockets[2] = {-1, -1};
 };
 
+
+TEST(TestMessage, ToBytesUsesNetworkByteOrderLength)
+{
+    Message message(MessageType::UserLogon, "alice");
+    std::vector<uint8_t> bytes = message.to_bytes();
+
+    ASSERT_EQ(bytes.size(), 10U);
+
+    uint32_t length = 0;
+    std::memcpy(&length, &bytes[1], sizeof(length));
+    EXPECT_EQ(ntohl(length), 5U);
+}
+
 TEST_F(TestServerClient, HandleLogonReadsSplitHeaderAndPayload)
 {
     bool disconnectedCalled = false;

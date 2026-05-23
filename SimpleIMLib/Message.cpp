@@ -1,5 +1,7 @@
 #include "Message.h"
 
+#include <arpa/inet.h>
+
 
 Message::Message(MessageType messageType, const std::string& data)
     : m_header(messageType, data.size())
@@ -11,7 +13,8 @@ std::vector<uint8_t> Message::to_bytes() const
     std::vector<uint8_t> bytes(1 + 4 + m_messageData.size());
 
     bytes[0] = static_cast<uint8_t>(m_header.type);
-    std::memcpy(&bytes[1], &m_header.length, sizeof(m_header.length));
+    const uint32_t networkLength = htonl(m_header.length);
+    std::memcpy(&bytes[1], &networkLength, sizeof(networkLength));
 
     // The message
     std::memcpy(&bytes[5], m_messageData.data(), m_messageData.size());
@@ -27,6 +30,7 @@ Message Message::from_bytes(const std::vector<uint8_t>& data)
 
     uint32_t length = 0;
     std::memcpy(&length, &data[1], 4);
+    length = ntohl(length);
 
     std::string payload(data.begin() + sizeof(MessageHeader), 
                         data.begin() + sizeof(MessageHeader) + length);
