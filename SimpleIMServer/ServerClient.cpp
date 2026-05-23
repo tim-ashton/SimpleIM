@@ -23,6 +23,7 @@ bool recvAll(int socket, char* buffer, size_t length)
     while (totalReceived < length) {
         const ssize_t bytesReceived = recv(socket, buffer + totalReceived, length - totalReceived, 0);
         if (bytesReceived == 0) {
+            errno = 0; // peer performed an orderly shutdown
             return false;
         }
 
@@ -191,8 +192,10 @@ std::optional<MessageHeader> ServerClient::readMessageHeader()
     {
         char headerBuffer[5];
         if (!recvAll(m_socket, headerBuffer, sizeof(headerBuffer))) {
-            if (!m_terminate) {
-                std::cerr << __PRETTY_FUNCTION__ << "Error: Failed to receive complete header from client" << std::endl;
+            if (!m_terminate && errno != 0) {
+                std::cerr << __PRETTY_FUNCTION__
+                          << "Error: Failed to receive complete header from client (errno="
+                          << errno << ": " << std::strerror(errno) << ")" << std::endl;
             }
             handleSocketError();
             return std::nullopt;
