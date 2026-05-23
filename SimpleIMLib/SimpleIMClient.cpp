@@ -230,6 +230,7 @@ std::optional<MessageHeader> SimpleIMClient::readMessageHeader()
     MessageType type = static_cast<MessageType>(headerBuffer[0]);
     uint32_t payloadLength = 0;
     std::memcpy(&payloadLength, &headerBuffer[1], sizeof(uint32_t));
+    payloadLength = ntohl(payloadLength);
 
     return MessageHeader(type, payloadLength);
 }
