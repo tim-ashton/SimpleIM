@@ -7,8 +7,16 @@
 #include <vector>
 #include <unistd.h>
 #include <cerrno>
+#include <arpa/inet.h>
 
 namespace {
+constexpr uint32_t kMaxPayloadLength = 1024 * 1024;
+
+bool isValidMessageType(MessageType type)
+{
+    return type >= MessageType::UserLogon && type <= MessageType::ClientDisconnected;
+}
+
 bool recvAll(int socket, char* buffer, size_t length)
 {
     size_t totalReceived = 0;
@@ -190,9 +198,23 @@ std::optional<MessageHeader> ServerClient::readMessageHeader()
             return std::nullopt;
         }
 
-        MessageType type = static_cast<MessageType>(headerBuffer[0]);
+        const MessageType type = static_cast<MessageType>(headerBuffer[0]);
         uint32_t payloadLength = 0;
         std::memcpy(&payloadLength, &headerBuffer[1], sizeof(uint32_t));
+        payloadLength = ntohl(payloadLength);
+
+        if (!isValidMessageType(type)) {
+            std::cerr << __PRETTY_FUNCTION__ << "Invalid message type: "
+                      << static_cast<int>(headerBuffer[0]) << std::endl;
+            handleSocketError();
+            return std::nullopt;
+        }
+
+        if (payloadLength > kMaxPayloadLength) {
+            std::cerr << __PRETTY_FUNCTION__ << "Payload too large: " << payloadLength << std::endl;
+            handleSocketError();
+            return std::nullopt;
+        }
 
         return MessageHeader(type, payloadLength);
     }
@@ -205,13 +227,17 @@ std::optional<MessageHeader> ServerClient::readMessageHeader()
 
 std::string ServerClient::readMessageData(uint32_t dataLen)
 {
-    if(dataLen < 1){
-        std::cout << __PRETTY_FUNCTION__ << "No data.";
+    if (dataLen == 0) {
+        return std::string();
+    }
+
+    if (dataLen > kMaxPayloadLength) {
+        std::cerr << __PRETTY_FUNCTION__ << "Payload too large: " << dataLen << std::endl;
+        handleSocketError();
         return std::string();
     }
 
     if (m_socket > -1) {
-
         std::vector<char> payloadBuffer(dataLen);
         if (!recvAll(m_socket, payloadBuffer.data(), dataLen)) {
             if (!m_terminate) {
@@ -221,13 +247,11 @@ std::string ServerClient::readMessageData(uint32_t dataLen)
             return std::string();
         }
 
-        std::string payload(payloadBuffer.begin(), payloadBuffer.end());
-        return payload;
+        return std::string(payloadBuffer.begin(), payloadBuffer.end());
     }
-    else {
-        std::cerr << __PRETTY_FUNCTION__ << "Invalid socket.";
-        return std::string();
-    }
+
+    std::cerr << __PRETTY_FUNCTION__ << "Invalid socket.";
+    return std::string();
 }
 
 void ServerClient::handleSocketError()
@@ -260,7 +284,8 @@ bool ServerClient::sendMessage(MessageType type, const std::string& data)
     // Send header
     char headerBuffer[5];
     headerBuffer[0] = static_cast<uint8_t>(type);
-    std::memcpy(&headerBuffer[1], &header.length, sizeof(uint32_t));
+    const uint32_t networkLength = htonl(header.length);
+    std::memcpy(&headerBuffer[1], &networkLength, sizeof(uint32_t));
     
     if (!sendAll(m_socket, headerBuffer, sizeof(headerBuffer))) {
         std::cerr << __PRETTY_FUNCTION__ << "Failed to send header" << std::endl;
@@ -270,7 +295,7 @@ bool ServerClient::sendMessage(MessageType type, const std::string& data)
     
     // Send data if any
     if (!data.empty()) {
-        if (!sendAll(m_socket, data.c_str(), data.length())) {
+        if (!sendAll(m_socket, data.data(), data.length())) {
             std::cerr << __PRETTY_FUNCTION__ << "Failed to send data" << std::endl;
             handleSocketError();
             return false;
