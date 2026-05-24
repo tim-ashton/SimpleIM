@@ -14,6 +14,13 @@ class ClientManager;
 class ServerClient 
 {
 public:
+    enum class ConnectionState
+    {
+        PreAuth,
+        Authenticated,
+        Closing
+    };
+
     explicit ServerClient(int socket, 
                     std::function<void(std::string)> disconnectCallback);
     ~ServerClient();
@@ -32,6 +39,7 @@ private:
     std::string m_userId;
 
     bool m_terminate;
+    ConnectionState m_state;
     std::unique_ptr<std::thread> m_thread;
 
     std::function<void(std::string)> m_clientDisconnected;
