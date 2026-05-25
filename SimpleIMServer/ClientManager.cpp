@@ -57,19 +57,35 @@ void ClientManager::registerClient(const std::string& userId, std::unique_ptr<Se
 
 void ClientManager::broadcastMessage(MessageType type, const std::string& data)
 {
-    std::lock_guard<std::mutex> lock(m_clientsMutex);
-    for(auto& clientPair : m_connectedClients) {
-        clientPair.second->sendMessage(type, data);
+    std::vector<ServerClient*> recipients;
+    {
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        recipients.reserve(m_connectedClients.size());
+        for (auto& clientPair : m_connectedClients) {
+            recipients.push_back(clientPair.second.get());
+        }
+    }
+
+    for (auto* recipient : recipients) {
+        recipient->sendMessage(type, data);
     }
 }
 
 void ClientManager::broadcastToOthers(const std::string& excludeUserId, MessageType type, const std::string& data)
 {
-    std::lock_guard<std::mutex> lock(m_clientsMutex);
-    for(auto& clientPair : m_connectedClients) {
-        if(clientPair.first != excludeUserId) {
-            clientPair.second->sendMessage(type, data);
+    std::vector<ServerClient*> recipients;
+    {
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        recipients.reserve(m_connectedClients.size());
+        for (auto& clientPair : m_connectedClients) {
+            if (clientPair.first != excludeUserId) {
+                recipients.push_back(clientPair.second.get());
+            }
         }
+    }
+
+    for (auto* recipient : recipients) {
+        recipient->sendMessage(type, data);
     }
 }
 
@@ -116,17 +132,22 @@ void ClientManager::onClientDisconnected(std::string userId)
 
 bool ClientManager::sendDirectMessage(const std::string& fromUserId, const std::string& toUserId, const std::string& message)
 {
-    std::lock_guard<std::mutex> lock(m_clientsMutex);
-    
-    auto it = m_connectedClients.find(toUserId);
-    if (it != m_connectedClients.end()) {
-        // Format: "fromUser: message"
+    ServerClient* recipient = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(m_clientsMutex);
+        auto it = m_connectedClients.find(toUserId);
+        if (it != m_connectedClients.end()) {
+            recipient = it->second.get();
+        }
+    }
+
+    if (recipient != nullptr) {
         std::string formattedMessage = fromUserId + ": " + message;
-        it->second->sendMessage(MessageType::ChatMessageBroadcast, formattedMessage);
+        recipient->sendMessage(MessageType::ChatMessageBroadcast, formattedMessage);
         return true;
     }
-    
-    return false; // User not found
+
+    return false;
 }
 
 void ClientManager::broadcastChatMessage(const std::string& fromUserId, const std::string& message)
@@ -142,10 +163,16 @@ void ClientManager::handleDirectMessage(const std::string& fromUserId, const std
     size_t colonPos = messageData.find(':');
     if (colonPos == std::string::npos || colonPos == 0 || colonPos == messageData.length() - 1) {
         // Send error back to sender - invalid format
-        std::lock_guard<std::mutex> lock(m_clientsMutex);
-        auto it = m_connectedClients.find(fromUserId);
-        if (it != m_connectedClients.end()) {
-            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Invalid direct message format. Expected 'username:message'");
+        ServerClient* sender = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            auto it = m_connectedClients.find(fromUserId);
+            if (it != m_connectedClients.end()) {
+                sender = it->second.get();
+            }
+        }
+        if (sender != nullptr) {
+            sender->sendMessage(MessageType::ChatMessageBroadcast, "System: Invalid direct message format. Expected 'username:message'");
         }
         return;
     }
@@ -155,27 +182,45 @@ void ClientManager::handleDirectMessage(const std::string& fromUserId, const std
     
     if (toUserId.empty() || actualMessage.empty()) {
         // Send error back to sender
-        std::lock_guard<std::mutex> lock(m_clientsMutex);
-        auto it = m_connectedClients.find(fromUserId);
-        if (it != m_connectedClients.end()) {
-            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Username and message cannot be empty");
+        ServerClient* sender = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            auto it = m_connectedClients.find(fromUserId);
+            if (it != m_connectedClients.end()) {
+                sender = it->second.get();
+            }
+        }
+        if (sender != nullptr) {
+            sender->sendMessage(MessageType::ChatMessageBroadcast, "System: Username and message cannot be empty");
         }
         return;
     }
     
     if (sendDirectMessage(fromUserId, toUserId, actualMessage)) {
         // Confirm to sender
-        std::lock_guard<std::mutex> lock(m_clientsMutex);
-        auto it = m_connectedClients.find(fromUserId);
-        if (it != m_connectedClients.end()) {
-            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: Message sent to " + toUserId);
+        ServerClient* sender = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            auto it = m_connectedClients.find(fromUserId);
+            if (it != m_connectedClients.end()) {
+                sender = it->second.get();
+            }
+        }
+        if (sender != nullptr) {
+            sender->sendMessage(MessageType::ChatMessageBroadcast, "System: Message sent to " + toUserId);
         }
     } else {
         // User not found
-        std::lock_guard<std::mutex> lock(m_clientsMutex);
-        auto it = m_connectedClients.find(fromUserId);
-        if (it != m_connectedClients.end()) {
-            it->second->sendMessage(MessageType::ChatMessageBroadcast, "System: User '" + toUserId + "' not found or not online");
+        ServerClient* sender = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_clientsMutex);
+            auto it = m_connectedClients.find(fromUserId);
+            if (it != m_connectedClients.end()) {
+                sender = it->second.get();
+            }
+        }
+        if (sender != nullptr) {
+            sender->sendMessage(MessageType::ChatMessageBroadcast, "System: User '" + toUserId + "' not found or not online");
         }
     }
 }
