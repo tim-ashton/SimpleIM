@@ -71,6 +71,7 @@ ServerClient::ServerClient(int socket,
     : m_socket(socket)
     , m_userId("")
     , m_terminate(false)
+    , m_state(ConnectionState::PreAuth)
     , m_clientDisconnected(disconnectCallback)
 {}
 
@@ -92,6 +93,12 @@ ServerClient::~ServerClient()
 
 bool ServerClient::handleLogon(ClientManager* manager)
 {
+    if (m_state != ConnectionState::PreAuth) {
+        std::cerr << __PRETTY_FUNCTION__ << "Logon attempted outside pre-auth state." << std::endl;
+        sendMessage(MessageType::LoginFailure, "Already authenticated");
+        return false;
+    }
+
     std::optional<MessageHeader> header = readMessageHeader();
     if(!header.has_value()) {
         std::cerr << __PRETTY_FUNCTION__ << "Failed to read message header." << std::endl;
@@ -119,6 +126,7 @@ bool ServerClient::handleLogon(ClientManager* manager)
     }
 
     m_userId = username;
+    m_state = ConnectionState::Authenticated;
     
     // Send login success
     sendMessage(MessageType::LoginSuccess, "Login successful");
@@ -151,10 +159,12 @@ void ServerClient::run(ClientManager* manager)
                         switch(header->type)
                         {
                             case MessageType::UserLogon:
-                                std::cout << "User logon during active session." << std::endl;
-                                m_userId = messageData;
+                                std::cout << "User logon during active session ignored for user: " << m_userId << std::endl;
                             break;
                             case MessageType::UserLogoff:
+                                m_state = ConnectionState::Closing;
+                                handleSocketError();
+                                return;
                             break;
                             case MessageType::ChatMessageBroadcast:
                                 std::cout << "Received chat message from " << m_userId << ": " << messageData << std::endl;
@@ -259,6 +269,7 @@ std::string ServerClient::readMessageData(uint32_t dataLen)
 
 void ServerClient::handleSocketError()
 {
+    m_state = ConnectionState::Closing;
     m_terminate = true;
 
     if (m_socket > -1) {

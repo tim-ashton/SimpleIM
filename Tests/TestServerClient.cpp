@@ -11,6 +11,9 @@
 #include <optional>
 #include <vector>
 #include <cstring>
+#include <atomic>
+#include <chrono>
+#include <thread>
 #include <arpa/inet.h>
 
 class TestServerClient : public ::testing::Test
@@ -167,4 +170,64 @@ TEST_F(TestServerClient, HandleLogonSendsExpectedSuccessMessages)
     ASSERT_TRUE(secondHeader.has_value());
     EXPECT_EQ(secondHeader->type, MessageType::ConnectedClientsList);
     EXPECT_EQ(secondHeader->length, 0U);
+}
+
+TEST_F(TestServerClient, RunIgnoresRelogonAfterAuthentication)
+{
+    ServerClient client(m_sockets[0], [](const std::string&) {});
+    ClientManager manager;
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "alice")));
+    ASSERT_TRUE(client.handleLogon(&manager));
+    EXPECT_EQ(client.getUserId(), "alice");
+
+    // Drain handleLogon responses from socket.
+    std::optional<MessageHeader> firstHeader = recvHeader();
+    ASSERT_TRUE(firstHeader.has_value());
+    std::vector<char> firstPayload(firstHeader->length);
+    ASSERT_EQ(recv(m_sockets[1], firstPayload.data(), firstPayload.size(), 0),
+              static_cast<ssize_t>(firstPayload.size()));
+    std::optional<MessageHeader> secondHeader = recvHeader();
+    ASSERT_TRUE(secondHeader.has_value());
+
+    client.run(&manager);
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "mallory")));
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogoff, "")));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    EXPECT_EQ(client.getUserId(), "alice");
+}
+
+TEST_F(TestServerClient, UserLogoffTriggersDisconnectCallbackExactlyOnce)
+{
+    std::atomic<int> callbackCount(0);
+    std::string disconnectedUserId;
+
+    ServerClient client(
+        m_sockets[0],
+        [&](std::string userId) {
+            ++callbackCount;
+            disconnectedUserId = userId;
+        });
+    ClientManager manager;
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "alice")));
+    ASSERT_TRUE(client.handleLogon(&manager));
+
+    // Drain handleLogon responses from socket.
+    std::optional<MessageHeader> firstHeader = recvHeader();
+    ASSERT_TRUE(firstHeader.has_value());
+    std::vector<char> firstPayload(firstHeader->length);
+    ASSERT_EQ(recv(m_sockets[1], firstPayload.data(), firstPayload.size(), 0),
+              static_cast<ssize_t>(firstPayload.size()));
+    std::optional<MessageHeader> secondHeader = recvHeader();
+    ASSERT_TRUE(secondHeader.has_value());
+
+    client.run(&manager);
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogoff, "")));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    EXPECT_EQ(callbackCount.load(), 1);
+    EXPECT_EQ(disconnectedUserId, "alice");
 }
