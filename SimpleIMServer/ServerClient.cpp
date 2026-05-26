@@ -85,9 +85,14 @@ ServerClient::~ServerClient()
         m_socket = -1;
     }
     
-    // Then wait for thread to finish
-    if(m_thread && m_thread->joinable()) {
-        m_thread->join();
+    // Then wait for thread to finish. If destruction occurs on the same client thread,
+    // detach to avoid self-join.
+    if (m_thread && m_thread->joinable()) {
+        if (m_thread->get_id() == std::this_thread::get_id()) {
+            m_thread->detach();
+        } else {
+            m_thread->join();
+        }
     }
 }
 

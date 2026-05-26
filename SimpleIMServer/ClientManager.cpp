@@ -118,15 +118,20 @@ std::string ClientManager::serializeUserList()
 void ClientManager::onClientDisconnected(std::string userId)
 {
     std::cout << __PRETTY_FUNCTION__ << "User id: " << userId << std::endl;
-    
+
+    std::unique_ptr<ServerClient> disconnectedClient;
     {
         std::lock_guard<std::mutex> lock(m_clientsMutex);
-        m_connectedClients.erase(userId);
+        auto clientIt = m_connectedClients.find(userId);
+        if (clientIt != m_connectedClients.end()) {
+            disconnectedClient = std::move(clientIt->second);
+            m_connectedClients.erase(clientIt);
+        }
     }
-    
+
     // Broadcast to all remaining clients that someone disconnected
     broadcastMessage(MessageType::ClientDisconnected, userId);
-    
+
     std::cout << "Client '" << userId << "' disconnected and removed." << std::endl;
 }
 
