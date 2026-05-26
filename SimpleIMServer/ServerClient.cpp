@@ -151,6 +151,7 @@ void ServerClient::run(ClientManager* manager)
         std::cout << __PRETTY_FUNCTION__ << "Client starting..." << std::endl;
 
         m_thread.reset(new std::thread([this, manager]()->void {
+            const std::string userIdSnapshot = m_userId;
             
             while(!m_terminate && m_socket > -1) {
 
@@ -188,11 +189,11 @@ void ServerClient::run(ClientManager* manager)
                 }
                 else {
                     // If we can't read a header, the client has likely disconnected
-                    break;
+                    return;
                 }
             }
             
-            std::cout << __PRETTY_FUNCTION__ << "Client thread ending for user: " << m_userId << std::endl;
+            std::cout << __PRETTY_FUNCTION__ << "Client thread ending for user: " << userIdSnapshot << std::endl;
         }));
     }
     else

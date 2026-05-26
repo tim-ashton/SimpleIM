@@ -22,6 +22,8 @@ protected:
     void SetUp() override
     {
         ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, m_sockets), 0);
+        timeval timeout{1, 0};
+        ASSERT_EQ(setsockopt(m_sockets[1], SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
     }
 
     void TearDown() override
@@ -75,6 +77,21 @@ protected:
         std::memcpy(&payloadLength, &headerBuffer[1], sizeof(uint32_t));
         payloadLength = ntohl(payloadLength);
         return MessageHeader(type, payloadLength);
+    }
+
+    bool recvPayload(std::vector<char>& payload)
+    {
+        size_t receivedTotal = 0;
+        while (receivedTotal < payload.size()) {
+            const ssize_t received = recv(m_sockets[1], payload.data() + receivedTotal, payload.size() - receivedTotal, 0);
+            if (received <= 0) {
+                return false;
+            }
+
+            receivedTotal += static_cast<size_t>(received);
+        }
+
+        return true;
     }
 
     int m_sockets[2] = {-1, -1};
@@ -230,4 +247,65 @@ TEST_F(TestServerClient, UserLogoffTriggersDisconnectCallbackExactlyOnce)
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     EXPECT_EQ(callbackCount.load(), 1);
     EXPECT_EQ(disconnectedUserId, "alice");
+}
+
+TEST_F(TestServerClient, HandleLogonRejectsInvalidMessageType)
+{
+    ServerClient client(m_sockets[0], [](const std::string&) {});
+    ClientManager manager;
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::ChatMessageBroadcast, "alice")));
+
+    EXPECT_FALSE(client.handleLogon(&manager));
+
+    std::optional<MessageHeader> responseHeader = recvHeader();
+    ASSERT_TRUE(responseHeader.has_value());
+    EXPECT_EQ(responseHeader->type, MessageType::LoginFailure);
+    EXPECT_EQ(responseHeader->length, strlen("Invalid message type"));
+}
+
+TEST_F(TestServerClient, HandleLogonRejectsZeroLengthUsername)
+{
+    ServerClient client(m_sockets[0], [](const std::string&) {});
+    ClientManager manager;
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "")));
+
+    EXPECT_FALSE(client.handleLogon(&manager));
+
+    std::optional<MessageHeader> responseHeader = recvHeader();
+    ASSERT_TRUE(responseHeader.has_value());
+    EXPECT_EQ(responseHeader->type, MessageType::LoginFailure);
+    EXPECT_EQ(responseHeader->length, strlen("Username cannot be empty"));
+}
+
+TEST_F(TestServerClient, IntegrationClientDisconnectRemovesUserWithoutCrash)
+{
+    ClientManager manager;
+
+    std::thread acceptThread([&]() {
+        manager.addConnectedClient(m_sockets[0]);
+    });
+
+    ASSERT_TRUE(sendRaw(buildRawMessage(MessageType::UserLogon, "alice")));
+
+    std::optional<MessageHeader> loginHeader = recvHeader();
+    ASSERT_TRUE(loginHeader.has_value());
+    ASSERT_EQ(loginHeader->type, MessageType::LoginSuccess);
+    std::vector<char> loginPayload(loginHeader->length);
+    ASSERT_TRUE(recvPayload(loginPayload));
+
+    std::optional<MessageHeader> listHeader = recvHeader();
+    ASSERT_TRUE(listHeader.has_value());
+    ASSERT_EQ(listHeader->type, MessageType::ConnectedClientsList);
+    std::vector<char> listPayload(listHeader->length);
+    ASSERT_TRUE(recvPayload(listPayload));
+
+    acceptThread.join();
+
+    close(m_sockets[1]);
+    m_sockets[1] = -1;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_TRUE(manager.getConnectedUsernames().empty());
 }
