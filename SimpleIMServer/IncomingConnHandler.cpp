@@ -35,7 +35,14 @@ void IncomingConnHandler::start()
 
             int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
             if (serverSocket == -1) {
-                std::cerr << "Error: Could not create socket\n";
+                std::cerr << "Error: Could not create socket. errno=" << errno << "\n";
+                return;
+            }
+
+            int reuseAddr = 1;
+            if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuseAddr, sizeof(reuseAddr)) == -1) {
+                std::cerr << "Error: Could not set SO_REUSEADDR on server socket. errno=" << errno << "\n";
+                close(serverSocket);
                 return;
             }
 
@@ -45,13 +52,13 @@ void IncomingConnHandler::start()
             serverAddr.sin_addr.s_addr = INADDR_ANY;
 
             if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
-                std::cerr << "Error: Could not bind socket to address\n";
+                std::cerr << "Error: Could not bind socket to address. errno=" << errno << "\n";
                 close(serverSocket);
                 return;
             }
 
             if (listen(serverSocket, 10) == -1) {
-                std::cerr << "Error: Could not listen on socket\n";
+                std::cerr << "Error: Could not listen on socket. errno=" << errno << "\n";
                 close(serverSocket);
                 return;
             }
@@ -73,7 +80,7 @@ void IncomingConnHandler::start()
                 
                 if (selectResult == -1) {
                     if (errno != EINTR) {
-                        std::cerr << "Error: select() failed\n";
+                        std::cerr << "Error: select() failed on server socket. errno=" << errno << "\n";
                         break;
                     }
                     // signal interrupt
@@ -91,7 +98,7 @@ void IncomingConnHandler::start()
                     
                     if (clientSocket == -1) {
                         if (errno != EWOULDBLOCK && errno != EAGAIN) {
-                            std::cerr << "Error: Could not accept incoming connection\n";
+                            std::cerr << "Error: Could not accept incoming connection. errno=" << errno << "\n";
                         }
                         continue;
                     }
